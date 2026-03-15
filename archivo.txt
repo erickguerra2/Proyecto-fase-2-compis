@@ -1,0 +1,19 @@
+area = base * altura / 2
+perimetro = 2 * (lado1 + lado2)
+
+x0 = 10
+x1 = x0 + 5
+x2 = x1 * x1
+
+promedio = (nota1 + nota2 + nota3) / 3
+
+imc = peso / (talla * talla)
+
+distancia = velocidad * tiempo
+tiempo2 = distancia / velocidad
+
+celcius = (fahrenheit - 32) * 5 / 9
+
+interes = capital * tasa * anos
+
+raiz = (b * b) - (4 * a * c)

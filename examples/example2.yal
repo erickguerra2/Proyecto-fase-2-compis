@@ -1,0 +1,22 @@
+(* Ejemplo basado en el documento YALex del curso *)
+
+let digit  = ['0'-'9']
+let letter = ['a'-'z''A'-'Z']
+
+rule gettoken =
+    [' ''\t']+                 { return WHITESPACE }
+  | ['\n']                     { return EOL }
+  | digit+ ('.' digit+)?       { return NUMBER }
+  | letter (letter | digit)*   { return ID }
+  | '<' '='                    { return LE }
+  | '<'                        { return LT }
+  | '>' '='                    { return GE }
+  | '>'                        { return GT }
+  | '=' '='                    { return EQ }
+  | '='                        { return ASSIGN }
+  | '+'                        { return PLUS }
+  | '-'                        { return MINUS }
+  | '*'                        { return TIMES }
+  | '/'                        { return DIV }
+  | '('                        { return LPAREN }
+  | ')'                        { return RPAREN }

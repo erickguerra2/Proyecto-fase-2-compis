@@ -63,72 +63,69 @@ def dfa_to_dot(start: DFAState, all_states: list, title="DFA") -> str:
     return "\n".join(lines)
 
 
-# construye el árbol de expresión a partir del postfix y genera su DOT
+# genera los nodos del árbol recursivamente
+def _dot_nodes(node, lines):
+    fp = "{" + ",".join(str(p) for p in sorted(node.firstpos)) + "}"
+    lp = "{" + ",".join(str(p) for p in sorted(node.lastpos)) + "}"
+    nl = "true" if node.nullable else "false"
+
+    if node.kind == 'leaf':
+        label = f"{node.label}\\npos={node.pos}\\nfp={fp} lp={lp}"
+        lines.append(f'  n{node.nid} [shape=box, label="{label}"];')
+    else:
+        label = f"{node.label}\\nnullable={nl}\\nfp={fp}\\nlp={lp}"
+        lines.append(f'  n{node.nid} [shape=ellipse, label="{label}"];')
+
+    for child in node.children:
+        lines.append(f'  n{node.nid} -> n{child.nid};')
+        _dot_nodes(child, lines)
+
+
+# genera la tabla de followpos
+def _dot_followpos_table(leaves, followpos, lines):
+    rows = []
+    for leaf in leaves:
+        fp_str = "{" + ",".join(str(p) for p in sorted(followpos.get(leaf.pos, set()))) + "}"
+        sym = leaf.label.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        rows.append(f'<TR><TD>{leaf.pos}</TD><TD>{sym}</TD><TD ALIGN="LEFT">{fp_str}</TD></TR>')
+
+    header = '<TR><TD><B>pos</B></TD><TD><B>símbolo</B></TD><TD><B>followpos</B></TD></TR>'
+    table = (
+        '  followpos_table [shape=none, margin=0, label=<'
+        '<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">'
+        + header + "".join(rows) +
+        '</TABLE>>];'
+    )
+    lines.append(table)
+
+
+# construye el árbol con todos los pos
 def expr_tree_to_dot(postfix: list, token_name: str = "", title: str = "ExprTree") -> str:
-    # cada nodo tiene id, label e hijos
-    nodes = []
-    stack = []
-    counter = [0]
+    from pos_functions import analyze
 
-    def new_node(label):
-        nid = counter[0]
-        counter[0] += 1
-        nodes.append((nid, label, []))
-        return nid
+    if not postfix:
+        return f'digraph {title} {{ label="{token_name}"; }}'
 
-    def add_child(parent, child):
-        nodes[parent][2].append(child)
-
-    # reconstruye el árbol desde el postfix usando una pila de nodos
-    node_stack = []
-    for tok in postfix:
-        kind = tok[0]
-        if kind == "CHAR":
-            sym = tok[1]
-            label = sym.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")
-            node_stack.append(new_node(label))
-        elif kind == "SET":
-            s = sorted(tok[1])
-            if len(s) > 6:
-                label = f"{s[0]}-{s[-1]}"
-            else:
-                label = "[" + "".join(s).replace("\\", "\\\\").replace('"', '\\"') + "]"
-            node_stack.append(new_node(label))
-        elif kind == "ANY":
-            node_stack.append(new_node("_"))
-        elif kind == "EOF":
-            node_stack.append(new_node("eof"))
-        elif kind == "OP":
-            op = tok[1]
-            if op in ("*", "+", "?"):
-                # operador unario, un solo hijo
-                nid = new_node(op)
-                if node_stack:
-                    child = node_stack.pop()
-                    add_child(nid, child)
-                node_stack.append(nid)
-            else:
-                # operador binario, dos hijos
-                nid = new_node(op)
-                right = node_stack.pop() if node_stack else new_node("?")
-                left  = node_stack.pop() if node_stack else new_node("?")
-                add_child(nid, left)
-                add_child(nid, right)
-                node_stack.append(nid)
+    root, followpos, leaves = analyze(postfix)
 
     safe_title = title.replace(" ", "_")
-    lines = [f'digraph {safe_title} {{', '  node [fontname="Helvetica"];']
+    lines = [
+        f'digraph {safe_title} {{',
+        '  node [fontname="Helvetica"];',
+        '  rankdir=TB;',
+        '  ranksep=0.5;',
+    ]
     if token_name:
-        lines.append(f'  label="{token_name}"; labelloc=t;')
+        lines.append(f'  label="{token_name}"; labelloc=t; fontsize=16;')
 
-    for nid, label, children in nodes:
-        # operadores van en elipse, hojas en rectángulo
-        if label in ("·", "|", "*", "+", "?", "#"):
-            lines.append(f'  n{nid} [shape=ellipse, label="{label}"];')
-        else:
-            lines.append(f'  n{nid} [shape=box, label="{label}"];')
-        for child in children:
-            lines.append(f'  n{nid} -> n{child};')
+    # nodos del árbol
+    _dot_nodes(root, lines)
+
+    # tabla de followpos
+    _dot_followpos_table(leaves, followpos, lines)
+
+    # conecta la raíz a la tabla
+    lines.append(f'  n{root.nid} -> followpos_table [style=invis];')
 
     lines.append("}")
     return "\n".join(lines)

@@ -1,0 +1,7 @@
+let digit = ['0'-'9']
+
+rule gettoken =
+    digit+          { return NUM }
+  | '+'             { return PLUS }
+  | '-'             { return MINUS }
+  | [' ''\t']+      { return WS }

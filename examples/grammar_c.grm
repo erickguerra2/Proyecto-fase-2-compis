@@ -1,0 +1,138 @@
+# grammar_c.grm
+# Para lexer generado desde expresiones.yal (C completo)
+# Tokens reales producidos por el lexer: ID, LIT_INT, LIT_FLOAT, TYPE_INT,
+# TYPE_VOID, TYPE_CHAR, KW_IF, KW_ELSE, KW_WHILE, KW_RETURN, KW_FOR,
+# OP_ASSIGN, OP_PLUS, OP_MINUS, OP_TIMES, OP_DIV, OP_EQ, OP_NEQ, OP_LT,
+# OP_LE, OP_GT, OP_GE, OP_INC, OP_AND, OP_OR, OP_NOT,
+# SEMICOLON, COMMA, LPAREN, RPAREN, LBRACE, RBRACE
+
+Program       -> DeclList
+
+DeclList      -> Decl DeclList
+DeclList      ->
+
+Decl          -> FuncDecl
+Decl          -> VarDecl
+
+# Declaracion de variable: int x;  int x = expr;
+VarDecl       -> Type ID SEMICOLON
+VarDecl       -> Type ID OP_ASSIGN Expr SEMICOLON
+
+# Declaracion de funcion: int foo(params) { body }
+FuncDecl      -> Type ID LPAREN ParamList RPAREN Block
+
+Type          -> TYPE_INT
+Type          -> TYPE_VOID
+Type          -> TYPE_CHAR
+Type          -> TYPE_FLOAT
+Type          -> TYPE_DOUBLE
+Type          -> TYPE_LONG
+Type          -> TYPE_SHORT
+Type          -> TYPE_UNSIGNED
+Type          -> TYPE_SIGNED
+
+ParamList     -> Param ParamTail
+ParamList     ->
+
+ParamTail     -> COMMA Param ParamTail
+ParamTail     ->
+
+Param         -> Type ID
+
+# Bloque: { stmts }
+Block         -> LBRACE StmtList RBRACE
+
+StmtList      -> Stmt StmtList
+StmtList      ->
+
+Stmt          -> VarDecl
+Stmt          -> AssignStmt
+Stmt          -> ReturnStmt
+Stmt          -> IfStmt
+Stmt          -> WhileStmt
+Stmt          -> ForStmt
+Stmt          -> ExprStmt
+Stmt          -> Block
+
+# x = expr;
+AssignStmt    -> ID OP_ASSIGN Expr SEMICOLON
+
+# return expr;
+ReturnStmt    -> KW_RETURN Expr SEMICOLON
+ReturnStmt    -> KW_RETURN SEMICOLON
+
+# if (cond) stmt
+# if (cond) stmt else stmt
+IfStmt        -> KW_IF LPAREN Expr RPAREN Stmt IfTail
+IfTail        -> KW_ELSE Stmt
+IfTail        ->
+
+# while (cond) stmt
+WhileStmt     -> KW_WHILE LPAREN Expr RPAREN Stmt
+
+# for (init; cond; incr) stmt
+ForStmt       -> KW_FOR LPAREN ForInit Expr SEMICOLON Expr RPAREN Stmt
+
+ForInit       -> VarDecl
+ForInit       -> AssignStmt
+ForInit       -> SEMICOLON
+
+# expr;
+ExprStmt      -> Expr SEMICOLON
+
+# Expresiones con precedencia correcta (sin recursion izquierda)
+Expr          -> OrExpr AssignTail
+AssignTail    -> OP_ASSIGN Expr
+AssignTail    ->
+
+OrExpr        -> AndExpr OrTail
+OrTail        -> OP_OR AndExpr OrTail
+OrTail        ->
+
+AndExpr       -> EqExpr AndTail
+AndTail       -> OP_AND EqExpr AndTail
+AndTail       ->
+
+EqExpr        -> RelExpr EqTail
+EqTail        -> OP_EQ  RelExpr EqTail
+EqTail        -> OP_NEQ RelExpr EqTail
+EqTail        ->
+
+RelExpr       -> AddExpr RelTail
+RelTail       -> OP_LT AddExpr RelTail
+RelTail       -> OP_LE AddExpr RelTail
+RelTail       -> OP_GT AddExpr RelTail
+RelTail       -> OP_GE AddExpr RelTail
+RelTail       ->
+
+AddExpr       -> MulExpr AddTail
+AddTail       -> OP_PLUS  MulExpr AddTail
+AddTail       -> OP_MINUS MulExpr AddTail
+AddTail       ->
+
+MulExpr       -> UnaryExpr MulTail
+MulTail       -> OP_TIMES UnaryExpr MulTail
+MulTail       -> OP_DIV   UnaryExpr MulTail
+MulTail       ->
+
+UnaryExpr     -> OP_NOT   UnaryExpr
+UnaryExpr     -> OP_MINUS UnaryExpr
+UnaryExpr     -> PostExpr
+
+PostExpr      -> Primary PostTail
+PostTail      -> OP_INC PostTail
+PostTail      -> LPAREN ArgList RPAREN PostTail
+PostTail      ->
+
+Primary       -> LIT_INT
+Primary       -> LIT_FLOAT
+Primary       -> LIT_CHAR
+Primary       -> LIT_STRING
+Primary       -> ID
+Primary       -> LPAREN Expr RPAREN
+
+ArgList       -> Expr ArgTail
+ArgList       ->
+
+ArgTail       -> COMMA Expr ArgTail
+ArgTail       ->

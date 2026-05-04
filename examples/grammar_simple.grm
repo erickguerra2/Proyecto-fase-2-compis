@@ -1,0 +1,22 @@
+# ============================================================
+# grammar_simple.grm
+# Gramática para expresiones simples de asignación
+#
+# Tokens producidos por mi_lexer.py:
+#   ID    – identificador (letra seguida de letras/dígitos)
+#   NUM   – número entero
+#   PLUS  – operador '+'
+#   WS    – espacio / tab  (el parser los ignora automáticamente)
+#
+# Para usar con:
+#   python parser_main.py examples/grammar_simple.grm --text "x = c + 1"
+# ============================================================
+
+Program   -> StmtList
+StmtList  -> Stmt SEMI StmtList
+StmtList  -> Stmt
+Stmt      -> ID ASSIGN Expr
+Expr      -> Term PLUS Expr
+Expr      -> Term
+Term      -> NUM
+Term      -> ID

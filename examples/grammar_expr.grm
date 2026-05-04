@@ -1,0 +1,38 @@
+# ============================================================
+# grammar_expr.grm
+# Gramática de expresiones aritméticas SIN recursividad izquierda
+# (ya en forma LL — lista para parser descendente)
+#
+# Equivalente a la gramática de la diapositiva 22 después de
+# eliminar recursividad izquierda:
+#
+#   ANTES (con recursividad izquierda — NO usable en top-down):
+#     E → E + T | E - T | T
+#     T → T * F | T / F | F
+#
+#   DESPUÉS (eliminada — usable en top-down):
+#     E  → T E'
+#     E' → + T E' | - T E' | ε
+#     T  → F T'
+#     T' → * F T' | / F T' | ε
+#     F  → ( E ) | NUM | ID
+#
+# Tokens requeridos del lexer:
+#   ID, NUM, PLUS, MINUS, STAR, SLASH, ASSIGN, SEMI, LPAREN, RPAREN
+# ============================================================
+
+Program     -> StmtList
+StmtList    -> Stmt SEMI StmtList
+StmtList    -> Stmt
+Stmt        -> ID ASSIGN Expr
+Expr        -> Term ExprTail
+ExprTail    -> PLUS Term ExprTail
+ExprTail    -> MINUS Term ExprTail
+ExprTail    ->
+Term        -> Factor TermTail
+TermTail    -> STAR Factor TermTail
+TermTail    -> SLASH Factor TermTail
+TermTail    ->
+Factor      -> LPAREN Expr RPAREN
+Factor      -> NUM
+Factor      -> ID

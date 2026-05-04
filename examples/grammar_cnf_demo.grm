@@ -1,0 +1,21 @@
+# ============================================================
+# grammar_cnf_demo.grm
+# Demostracion de conversion a Forma Normal de Chomsky
+#
+# Esta gramatica (diapositiva 10 de la PPT):
+#   E -> E + E | E * E | -E | (E) | id
+#
+# Tiene:
+#   - Recursividad izquierda (E -> E + E)
+#   - Recursividad derecha   (E -> E + E, E * E)
+#   - Producciones largas    (no CNF)
+#   - Terminales mezclados   (no CNF)
+#
+# El parser la transformara automaticamente a CNF.
+# ============================================================
+
+E -> E PLUS E
+E -> E STAR E
+E -> MINUS E
+E -> LPAREN E RPAREN
+E -> id

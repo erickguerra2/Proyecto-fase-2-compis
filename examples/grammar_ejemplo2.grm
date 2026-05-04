@@ -1,0 +1,11 @@
+# grammar_ejemplo2.grm
+# Para lexer generado desde ejemplo2.yal
+# Tokens: NUM PLUS MINUS WS
+#
+# Reconoce: expresiones aritméticas de suma/resta
+# Ejemplo: 10 + 5 - 3
+
+Expr  -> Expr PLUS  Term
+Expr  -> Expr MINUS Term
+Expr  -> Term
+Term  -> NUM

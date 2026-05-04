@@ -1,0 +1,11 @@
+# ============================================================
+# grammar_right_rec.grm  -  Ejemplo de recursividad por la DERECHA
+#
+# A -> alpha A | beta  (NT al final -> recursividad DERECHA)
+# Es CORRECTA para parsers descendentes (top-down).
+#
+# Esta gramatica reconoce: id, id+id, id+id+id, ...
+# ============================================================
+
+Expr -> id PLUS Expr
+Expr -> id

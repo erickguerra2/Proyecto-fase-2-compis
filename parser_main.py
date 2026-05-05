@@ -127,8 +127,7 @@ def main():
     if args.show_grammar:
         print_grammar(grammar)
 
-    if args.show_table:
-        print_ll1_table(grammar)
+    print_ll1_table(grammar)
 
     if args.show_grammar:
         print(report_first_follow(grammar))

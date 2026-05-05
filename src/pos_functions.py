@@ -17,7 +17,6 @@ class Node:
 
 
 def build_tree(postfix: list):
-    # construye el árbol desde el postfix y agrega el #
     stack = []
     pos_counter = [0]
 
@@ -58,13 +57,12 @@ def build_tree(postfix: list):
 
     root = stack.pop() if stack else Node('?', 'op')
 
-    # concatena el # al final
+    # agrega nodo fin de cadena al arbol
     end = Node('#', 'leaf')
     pos_counter[0] += 1
     end.pos = pos_counter[0]
     root_with_end = new_op('·', [root, end])
 
-    # asigna ids a todos los nodos
     _assign_ids(root_with_end, [0])
     return root_with_end, pos_counter[0]
 
@@ -77,7 +75,6 @@ def _assign_ids(node: Node, counter: list):
 
 
 def compute_nullable_first_last(node: Node):
-    # sube de hojas a raíz viendo nullable, firstpos y lastpos
     for child in node.children:
         compute_nullable_first_last(child)
 
@@ -120,7 +117,6 @@ def compute_nullable_first_last(node: Node):
 
 
 def compute_followpos(node: Node, followpos: dict):
-    # calcula followpos en nodos de concatenación y loops
     if node.label == '·' and len(node.children) == 2:
         c1, c2 = node.children
         for p in c1.lastpos:
@@ -136,7 +132,6 @@ def compute_followpos(node: Node, followpos: dict):
 
 
 def collect_leaves(node: Node) -> list:
-    # agarra todas las hojas en orden de izquierda a derecha
     if node.kind == 'leaf':
         return [node]
     result = []
@@ -146,7 +141,6 @@ def collect_leaves(node: Node) -> list:
 
 
 def analyze(postfix: list):
-    # postfix a árbol a los pos
     root, total_pos = build_tree(postfix)
     compute_nullable_first_last(root)
     followpos = {i: set() for i in range(1, total_pos + 1)}

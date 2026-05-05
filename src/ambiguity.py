@@ -1,36 +1,8 @@
-"""
-ambiguity.py  -  Deteccion de ambiguedad en gramaticas libres de contexto.
-
-Teoria (diapositivas 19-20):
-  Una gramatica es AMBIGUA si existe al menos una cadena que puede
-  derivarse de MAS DE UNA forma, produciendo arboles distintos.
-
-  Ejemplo ambiguo (diapositiva 20):
-      E -> E + E | E * E | id
-      "1 + 2 * 3" puede derivarse de dos formas diferentes:
-        Arbol 1: (1 + 2) * 3   <- + tiene mayor precedencia
-        Arbol 2: 1 + (2 * 3)   <- * tiene mayor precedencia
-
-  Como eliminarla (diapositiva 21):
-    Reescribir la gramatica con reglas de precedencia explicita:
-      E -> E + T | T
-      T -> T * F | F
-      F -> (E) | id
-
-  NOTA: Decidir si una CFG arbitraria es ambigua es un problema
-  INDECIDIBLE en general. Este modulo detecta casos concretos:
-    1. Prefijos comunes no factorizados (A -> a b | a c)
-    2. NTs que producen la misma cadena por caminos distintos
-    3. Producciones que se superponen con misma longitud
-"""
+"""Deteccion de indicadores de ambiguedad en gramaticas libres de contexto."""
 
 from __future__ import annotations
 from src.cfg_grammar import Grammar
 
-
-# ─────────────────────────────────────────────────────────────
-# Deteccion de indicadores de ambiguedad
-# ─────────────────────────────────────────────────────────────
 
 class AmbiguityWarning:
     """Representa un caso de posible ambiguedad detectado."""
@@ -44,17 +16,13 @@ class AmbiguityWarning:
 
 
 def detect_ambiguity(grammar: Grammar) -> list:
-    """
-    Detecta indicadores de ambiguedad en la gramatica.
-    Devuelve lista de AmbiguityWarning (vacia = no se detecto ambiguedad).
-    """
+    """Devuelve lista de AmbiguityWarning con indicadores de ambiguedad."""
     warnings = []
 
     for nt, prods in grammar.productions.items():
         non_eps = [p for p in prods if p]
 
-        # ── 1. Prefijos comunes ────────────────────────────────────
-        # A -> a B | a C  => dos derivaciones comienzan igual
+        # Prefijos comunes: A -> a B | a C
         firsts = [p[0] for p in non_eps]
         seen = set()
         for sym in firsts:
@@ -67,7 +35,7 @@ def detect_ambiguity(grammar: Grammar) -> list:
                 break
             seen.add(sym)
 
-        # ── 2. Producciones identicas ──────────────────────────────
+        # Producciones identicas
         seen_prods = set()
         for p in prods:
             key = tuple(p)
@@ -78,7 +46,7 @@ def detect_ambiguity(grammar: Grammar) -> list:
                 ))
             seen_prods.add(key)
 
-        # ── 3. Recursividad en ambos lados (fuente clasica de ambiguedad) ──
+        # Recursividad en ambos lados: fuente clasica de ambiguedad
         left_rec  = [p for p in non_eps if p[0]  == nt]
         right_rec = [p for p in non_eps if p[-1] == nt]
         if left_rec and right_rec:
@@ -89,7 +57,7 @@ def detect_ambiguity(grammar: Grammar) -> list:
                 f"(ej: E->E+E produce arboles multiples para a+b+c)"
             ))
 
-        # ── 4. Producciones epsilon multiples ─────────────────────
+        # Producciones epsilon multiples
         eps_count = sum(1 for p in prods if not p)
         if eps_count > 1:
             warnings.append(AmbiguityWarning(
@@ -101,20 +69,15 @@ def detect_ambiguity(grammar: Grammar) -> list:
 
 
 def report_ambiguity(grammar: Grammar) -> str:
-    """Genera un reporte legible de la deteccion de ambiguedad."""
+    """Genera un reporte de la deteccion de ambiguedad."""
     warnings = detect_ambiguity(grammar)
-    lines = ["Analisis de Ambiguedad (diapositivas 19-20):"]
+    lines = ["Analisis de Ambiguedad:"]
     if not warnings:
         lines.append("  Sin indicadores de ambiguedad detectados.")
     else:
         lines.append(f"  ADVERTENCIA: {len(warnings)} indicador(es) encontrado(s):")
         for w in warnings:
             lines.append(str(w))
-        lines.append("")
-        lines.append("  Para eliminar la ambiguedad (diapositiva 21):")
-        lines.append("  -> Reescribir con jerarquia de precedencia explicita")
-        lines.append("  -> Aplicar factorizacion (elimina prefijos comunes)")
-        lines.append("  -> Eliminar recursividad en ambos lados")
     return "\n".join(lines)
 
 

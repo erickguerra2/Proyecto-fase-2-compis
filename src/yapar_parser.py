@@ -1,29 +1,4 @@
-"""
-yapar_parser.py  -  Lector de archivos .yapar / .yalp
-
-Formato soportado:
-    /* comentarios */
-    %token TOKEN_A TOKEN_B
-    %token TOKEN_C
-    IGNORE WS
-    %%
-    production1:
-        production1 TOKEN_A production2
-        | production2
-        ;
-    production2:
-        TOKEN_B
-        | TOKEN_C production1 TOKEN_B
-        ;
-
-Reglas:
-  - Comentarios delimitados por /* y */
-  - Seccion de tokens: %token NOMBRE (uno o varios por linea)
-  - IGNORE TOKEN: tokens que el parser descarta automaticamente
-  - %% separa la seccion de tokens de la seccion de producciones
-  - Producciones: nombre: alternativa | alternativa ;
-  - El primer no-terminal es el simbolo inicial
-"""
+"""Lector de archivos .yapar con soporte de %token, IGNORE y producciones."""
 
 from __future__ import annotations
 import re
@@ -41,24 +16,17 @@ def _strip_comments(text: str) -> str:
 
 
 def parse_yapar(path: str) -> Tuple[Grammar, Set[str]]:
-    """
-    Lee un archivo .yapar y devuelve (Grammar, ignored_tokens).
-
-    ignored_tokens: conjunto de tokens que el parser debe descartar
-                    (declarados con IGNORE).
-    """
+    """Lee un archivo .yapar y devuelve (Grammar, ignored_tokens)."""
     with open(path, encoding='utf-8') as fh:
         raw = fh.read()
 
     text = _strip_comments(raw)
 
-    # Dividir en seccion de tokens y seccion de producciones
     if '%%' not in text:
         raise YAParError(f"El archivo '{path}' no contiene '%%' para separar tokens de producciones.")
 
     token_section, _, prod_section = text.partition('%%')
 
-    # ── Sección de tokens ────────────────────────────────────────
     declared_tokens: Set[str] = set()
     ignored_tokens:  Set[str] = set()
 
@@ -75,11 +43,7 @@ def parse_yapar(path: str) -> Tuple[Grammar, Set[str]]:
             for name in names:
                 ignored_tokens.add(name)
 
-    # ── Sección de producciones ──────────────────────────────────
-    # Unir todo y dividir por ';' para obtener cada produccion
     productions_raw = prod_section.strip()
-
-    # Separar por ';' — cada bloque es una produccion completa
     blocks = [b.strip() for b in productions_raw.split(';') if b.strip()]
 
     grammar = Grammar()
@@ -102,15 +66,12 @@ def parse_yapar(path: str) -> Tuple[Grammar, Set[str]]:
         if lhs not in grammar.productions:
             grammar.productions[lhs] = []
 
-        # Alternativas separadas por '|'
         for alt in rhs_block.split('|'):
             symbols = alt.strip().split()
-            # Produccion vacia
             if not symbols or symbols in (['epsilon'], ['ε']):
                 symbols = []
             grammar.productions[lhs].append(symbols)
 
-    # Identificar terminales: simbolos que no son no-terminales
     for prods in grammar.productions.values():
         for prod in prods:
             for sym in prod:

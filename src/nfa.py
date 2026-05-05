@@ -11,9 +11,8 @@ EPSILON = "ε"
 class State:
     id:          int
     is_accept:   bool             = False
-    token_name:  Optional[str]    = None   # solo se usa si el estado es de aceptación
+    token_name:  Optional[str]    = None
     transitions: dict             = field(default_factory=dict)
-    # el símbolo puede ser un char, frozenset o ε
 
 _state_counter = 0
 
@@ -34,23 +33,17 @@ def _add_transition(src: State, symbol, dst: State):
         src.transitions[symbol].append(dst)
 
 
-# un fragmento tiene inicio pero sus salidas aún no están conectadas
-
 class Fragment:
     def __init__(self, start: State, ends: list):
         self.start = start
-        self.ends  = ends   # salidas libres, se conectan al siguiente fragmento
+        self.ends  = ends
 
     def patch(self, state: State):
-        # conecta todos los extremos libres al estado dado con ε
         for s in self.ends:
             _add_transition(s, EPSILON, state)
 
 
-# cada función arma un fragmento de AFN para un operador distinto
-
 def _frag_symbol(sym) -> Fragment:
-    # fragmento para un símbolo simple o conjunto
     s0 = _new_state()
     s1 = _new_state()
     _add_transition(s0, sym, s1)
@@ -74,7 +67,7 @@ def _frag_star(f: Fragment) -> Fragment:
     s1 = _new_state()
     _add_transition(s0, EPSILON, f.start)
     _add_transition(s0, EPSILON, s1)
-    f.patch(s0)  # vuelve al inicio para repetir
+    f.patch(s0)
     return Fragment(s0, [s1])
 
 
@@ -83,7 +76,6 @@ def _frag_plus(f: Fragment) -> Fragment:
     s1 = _new_state()
     _add_transition(s0, EPSILON, f.start)
     f.patch(s0)
-    # f+ es f seguido de un loop, al menos una repetición
     loop_start = _new_state()
     _add_transition(loop_start, EPSILON, f.start)
     _add_transition(loop_start, EPSILON, s1)
@@ -100,10 +92,7 @@ def _frag_opt(f: Fragment) -> Fragment:
     return Fragment(s0, [s1])
 
 
-# construye el AFN usando Thompson
-
 def build_nfa_from_postfix(postfix: list, token_name: str = None):
-    # recibe tokens en postfix y devuelve el estado inicial y el de aceptación
     stack = []
 
     for tok in postfix:
@@ -114,7 +103,7 @@ def build_nfa_from_postfix(postfix: list, token_name: str = None):
             stack.append(_frag_symbol(sym))
 
         elif kind == "SET":
-            stack.append(_frag_symbol(tok[1]))   # el conjunto de chars como un solo símbolo
+            stack.append(_frag_symbol(tok[1]))
 
         elif kind == "ANY":
             # acepta cualquier carácter ASCII imprimible
@@ -133,7 +122,6 @@ def build_nfa_from_postfix(postfix: list, token_name: str = None):
                 f = stack.pop()
                 stack.append(_frag_star(f))
             elif op == "+":
-                # se arma con nuevos estados para no reusar los del fragmento original
                 f = stack.pop()
                 import copy
                 f_star_end = _new_state()
@@ -147,8 +135,7 @@ def build_nfa_from_postfix(postfix: list, token_name: str = None):
                 f = stack.pop()
                 stack.append(_frag_opt(f))
             elif op == "#":
-                # diferencia no se implementa a nivel NFA, se ignora el segundo operando
-                _ = stack.pop()
+                _ = stack.pop()  # diferencia no implementada a nivel NFA
                 stack.append(stack.pop() if stack else _)
 
     if not stack:
@@ -161,7 +148,6 @@ def build_nfa_from_postfix(postfix: list, token_name: str = None):
 
 
 def build_global_nfa(nfa_list: list):
-    # une todos los AFN en uno solo con un estado inicial común
     global_start = _new_state()
     for (start, accept, _priority) in nfa_list:
         _add_transition(global_start, EPSILON, start)
@@ -169,7 +155,7 @@ def build_global_nfa(nfa_list: list):
 
 
 def collect_states(start: State) -> list:
-    # BFS para recolectar todos los estados del AFN
+    """Recolecta todos los estados del AFN por BFS."""
     visited, queue = set(), [start]
     while queue:
         s = queue.pop(0)

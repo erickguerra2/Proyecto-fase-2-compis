@@ -1,40 +1,9 @@
-"""
-error_recovery.py  -  Recuperacion de errores sintacticos.
-
-Teoria (PDF pagina 1 - Recuperacion de errores):
-
-  panic-mode:
-    Descartar simbolos hasta encontrar un token de sincronizacion (; y {)
-    Es el mas simple: cuando hay error, avanzar hasta encontrar un
-    token "seguro" desde donde continuar el analisis.
-
-  phrase-level:
-    Reemplazar un prefijo de la entrada restante con una cadena que
-    permite al parser continuar.
-    Ejemplo: agregar o eliminar un ';' faltante.
-
-  production-level:
-    Producciones con una derivacion no deseada (manejadas en la gramatica).
-
-  Global (minimo de edicion):
-    Buscar un AST reduciendo las modificaciones, eliminaciones e
-    inserciones de caracteres (algoritmo de distancia minima de edicion).
-    Es el mas costoso computacionalmente.
-
-Este modulo implementa panic-mode y phrase-level, que son los mas
-usados en compiladores reales (ej: GCC usa una combinacion de ambos).
-"""
+"""Recuperacion de errores sintacticos: panic-mode, phrase-level, production-level y global."""
 
 from __future__ import annotations
 from typing import List, Tuple, Optional, Set
 
 
-# ─────────────────────────────────────────────────────────────
-# Tokens de sincronizacion (panic-mode)
-# ─────────────────────────────────────────────────────────────
-
-# Tokens "seguros" desde donde se puede reanudar el analisis
-# Tomados directamente del PDF: "; y {"
 DEFAULT_SYNC_TOKENS: Set[str] = {
     "SEMI", "SEMICOLON", ";",
     "LBRACE", "{",
@@ -67,24 +36,12 @@ class SyntaxError_:
         return msg
 
 
-# ─────────────────────────────────────────────────────────────
-# Panic Mode (PDF: "Descartar Simbolos hasta token de sincronizacion")
-# ─────────────────────────────────────────────────────────────
-
 def panic_mode_recovery(
     tokens: List[Tuple[str, str]],
     error_pos: int,
     sync_tokens: Set[str] = None
 ) -> Tuple[int, List[Tuple[str, str]], SyntaxError_]:
-    """
-    Panic-mode: desde error_pos, descarta tokens hasta encontrar
-    uno de sincronizacion.
-
-    Devuelve:
-      - nueva posicion (despues del token de sincronizacion)
-      - tokens descartados
-      - objeto SyntaxError_ con el diagnostico
-    """
+    """Descarta tokens desde error_pos hasta encontrar un token de sincronizacion."""
     if sync_tokens is None:
         sync_tokens = DEFAULT_SYNC_TOKENS
 
@@ -98,7 +55,6 @@ def panic_mode_recovery(
         skipped.append(tokens[pos])
         pos += 1
 
-    # Avanzar sobre el token de sincronizacion (consumirlo)
     if pos < len(tokens):
         pos += 1
 
@@ -112,31 +68,17 @@ def panic_mode_recovery(
     return pos, skipped, err
 
 
-# ─────────────────────────────────────────────────────────────
-# Phrase-level (PDF: "Eliminar o Agregar ;")
-# ─────────────────────────────────────────────────────────────
-
 def phrase_level_recovery(
     tokens: List[Tuple[str, str]],
     error_pos: int,
     expected_type: str
 ) -> Tuple[List[Tuple[str, str]], Optional[SyntaxError_]]:
-    """
-    Phrase-level: intenta corregir el error insertando o eliminando
-    el token esperado.
-
-    Estrategias:
-      1. INSERCION: si el token esperado podria ir aqui, lo inserta
-      2. ELIMINACION: si el token actual es inesperado, lo elimina
-
-    Devuelve la lista de tokens modificada y el error registrado.
-    """
+    """Intenta corregir el error insertando o eliminando el token esperado."""
     insertable = {"SEMI", "SEMICOLON", ";", "RPAREN", ")", "RBRACE", "}"}
     new_tokens = list(tokens)
     err = None
 
     if expected_type in insertable and error_pos <= len(tokens):
-        # Insertar el token que falta
         lexeme_map = {
             "SEMI": ";", "SEMICOLON": ";",
             "RPAREN": ")", "RBRACE": "}"
@@ -150,7 +92,6 @@ def phrase_level_recovery(
             recovery=f"phrase-level: se inserto '{lexeme}' en posicion {error_pos}"
         )
     elif error_pos < len(tokens):
-        # Eliminar el token inesperado
         bad_tok = new_tokens.pop(error_pos)
         err = SyntaxError_(
             pos=error_pos,
@@ -163,10 +104,6 @@ def phrase_level_recovery(
     return new_tokens, err
 
 
-# ─────────────────────────────────────────────────────────────
-# Reporte
-# ─────────────────────────────────────────────────────────────
-
 def format_errors(errors: List[SyntaxError_]) -> str:
     """Formatea la lista de errores para mostrar al usuario."""
     if not errors:
@@ -178,30 +115,17 @@ def format_errors(errors: List[SyntaxError_]) -> str:
     return "\n".join(lines)
 
 
-# ─────────────────────────────────────────────────────────────
-# Production-level (PDF: "producciones con derivacion no deseada")
-# ─────────────────────────────────────────────────────────────
-
 def production_level_report(grammar) -> str:
-    """
-    Production-level recovery:
-    Identifica producciones que podrian generar derivaciones no deseadas
-    (producciones epsilon sin control, producciones muy generales).
-    En lugar de recuperarse en tiempo de ejecucion, este analisis
-    sugiere correcciones a la gramatica misma antes de parsear.
-    """
-    lines = ["Analisis production-level (PDF p.1):"]
+    """Identifica producciones que podrian generar derivaciones no deseadas."""
+    lines = ["Analisis production-level:"]
     issues = []
 
     for nt, prods in grammar.productions.items():
-        # NT que solo tiene epsilon (siempre deriva vacio — puede ser error)
         if prods == [[]] or prods == []:
             issues.append(f"  {nt} -> solo epsilon: podria generar derivaciones no deseadas")
 
-        # Producciones que aceptan cualquier cosa (muy permisivas)
         for p in prods:
             if len(p) == 1 and p[0] in grammar.nonterminals:
-                # Produccion unitaria: puede causar ciclos o ambiguedad
                 issues.append(f"  {nt} -> {p[0]}: produccion unitaria, verificar si es intencional")
 
     if issues:
@@ -212,24 +136,11 @@ def production_level_report(grammar) -> str:
     return "\n".join(lines)
 
 
-# ─────────────────────────────────────────────────────────────
-# Global (PDF: "Buscar AST reduciendo modificaciones")
-# ─────────────────────────────────────────────────────────────
-
 def global_min_edit_distance(tokens: list, grammar_terminals: set) -> str:
-    """
-    Global error recovery (PDF p.1):
-    Estima el minimo de ediciones (insercion, eliminacion, sustitucion)
-    necesarias para que la entrada sea valida.
-
-    Implementacion simplificada: cuenta tokens que NO son terminales
-    de la gramatica como candidatos a eliminar/sustituir.
-    Un compilador real (ej: GCC) usa algoritmos de distancia de edicion
-    sobre el arbol de derivacion parcial.
-    """
+    """Estima el minimo de ediciones necesarias para que la entrada sea valida."""
     visible = [(t, l) for t, l in tokens if t not in ("WS", "WHITESPACE", "NEWLINE")]
     unknown = [(t, l) for t, l in visible if t not in grammar_terminals]
-    lines   = ["Analisis global (minimo de edicion) (PDF p.1):"]
+    lines   = ["Analisis global (minimo de edicion):"]
     if not unknown:
         lines.append("  Todos los tokens son terminales validos de la gramatica.")
         lines.append("  Costo minimo de edicion estimado: 0")

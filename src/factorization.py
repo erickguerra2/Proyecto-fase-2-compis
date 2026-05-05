@@ -1,22 +1,4 @@
-"""
-factorization.py  –  Factorización por la izquierda (Left Factoring).
-
-Teoría (diapositiva 24-25):
-    Dada:   A → a β1 | a β2
-    Produce:
-            A  → a A'
-            A' → β1 | β2
-
-Necesario para que el parser descendente pueda elegir la producción
-correcta mirando un solo token (sin ambigüedad de prefijo).
-
-Ejemplo del PDF (Factorización):
-    INSTR → if EXPR then INSTR else INSTR
-    INSTR → if EXPR then INSTR
-    →
-    INSTR  → if EXPR then INSTR INSTR'
-    INSTR' → else INSTR | ε
-"""
+"""Factorización por la izquierda para eliminar prefijos comunes en la gramática."""
 
 from __future__ import annotations
 from src.cfg_grammar import Grammar
@@ -60,20 +42,17 @@ def left_factor(grammar: Grammar) -> Grammar:
                 if len(group) == 1:
                     factored.append(group[0])
                     continue
-                # Hay 2+ producciones con el mismo primer símbolo → factorizar
                 changed = True
                 nt_prime = nt + "'"
                 while nt_prime in new_prods or nt_prime in extra:
                     nt_prime += "'"
 
-                # A → sym A'
                 factored.append([sym, nt_prime])
 
-                # A' → resto1 | resto2 | ...
                 tails = []
                 for p in group:
-                    tail = p[1:]   # quitar el prefijo común
-                    tails.append(tail if tail else [])   # [] = ε
+                    tail = p[1:]
+                    tails.append(tail if tail else [])
                 extra[nt_prime] = tails
 
             new_prods[nt] = factored

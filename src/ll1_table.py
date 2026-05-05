@@ -1,31 +1,4 @@
-"""
-ll1_table.py  -  Tabla de parsing LL(1) y parser predictivo.
-
-Teoria:
-  TABLA M[A, a]:
-    Para cada produccion A -> alpha:
-      1. Para cada 'a' en FIRST(alpha) - {epsilon}: M[A,a] = alpha
-      2. Si epsilon in FIRST(alpha):
-           Para cada 'b' en FOLLOW(A): M[A,b] = alpha
-
-  La gramatica es LL(1) si ninguna celda tiene mas de una produccion.
-
-  PARSER PREDICTIVO O(n):
-    Pila: [S, $]  Entrada: w$
-    - X == a (terminal): pop + avanzar
-    - X es NT y M[X,a] existe: pop X, push produccion en inverso
-    - M[X,a] vacio: RECUPERAR con FOLLOW
-
-  NODOS EPSILON:
-    A -> epsilon genera un hijo ParseNode('epsilon', lexeme='e')
-    para que el arbol sea completo.
-
-  RECUPERACION CON FOLLOW:
-    Si M[A,a] vacio:
-      'a' in FOLLOW(A) -> aplicar epsilon, NO consumir token
-      'a' NOT in FOLLOW(A) -> descartar token
-    Si terminal en pila no coincide -> pop (insercion ficticia)
-"""
+"""Tabla de parsing LL(1) y parser predictivo con recuperacion de errores por FOLLOW."""
 
 from __future__ import annotations
 from typing import Dict, List, Tuple, Optional
@@ -125,24 +98,12 @@ def report_ll1(grammar: Grammar) -> str:
     return "\n".join(lines)
 
 
-# ─────────────────────────────────────────────────────────────
-# Parser predictivo LL(1) — parser principal
-# ─────────────────────────────────────────────────────────────
-
 class LL1ParseError(Exception):
     pass
 
 
 class LL1Parser:
-    """
-    Parser predictivo LL(1) basado en tabla M[NT, terminal].
-    Es el parser PRINCIPAL del proyecto.
-
-    - O(n): sin backtracking
-    - Recuperacion de errores con FOLLOW sets
-    - Nodos epsilon explicitos en el arbol
-    - Si la gramatica NO es LL(1), lanza LL1ParseError
-    """
+    """Parser predictivo LL(1) con recuperacion de errores por FOLLOW sets."""
 
     def __init__(self, grammar: Grammar,
                  tokens: List[Tuple[str, str]]) -> None:
@@ -158,17 +119,7 @@ class LL1Parser:
         return len(self.conflicts) == 0
 
     def parse(self) -> ParseNode:
-        """
-        Algoritmo de parsing predictivo con pila explicita.
-
-        Pila: [(simbolo, nodo_arbol), ...]
-        Tope = ultimo elemento de la lista.
-
-        Para cada paso:
-          - Si tope es terminal y coincide con token: pop + avanzar
-          - Si tope es NT: buscar M[NT, token] y expandir
-          - Si M[NT, token] vacio: recuperar con FOLLOW
-        """
+        """Ejecuta el parsing predictivo con pila explicita."""
         if not self.is_ll1():
             raise LL1ParseError(
                 f"La gramatica tiene {len(self.conflicts)} conflicto(s) LL(1).\n"
@@ -189,14 +140,12 @@ class LL1Parser:
             top_sym, top_node = stack[-1]
             cur_type, cur_lex = input_tokens[pos]
 
-            # ── EXITO ─────────────────────────────────────────────
             if top_sym == EOF_SYM:
                 if cur_type == EOF_SYM:
                     break
                 else:
                     raise LL1ParseError(f"Entrada no consumida: {input_tokens[pos:]}")
 
-            # ── Terminal en tope ───────────────────────────────────
             if top_sym in self.grammar.terminals:
                 if self._match(top_sym, cur_type, cur_lex):
                     if top_node:
@@ -204,7 +153,6 @@ class LL1Parser:
                     stack.pop()
                     pos += 1
                 else:
-                    # Recuperacion: pop terminal de la pila
                     self.recovery_log.append(
                         f"  [RECOVERY/pop_terminal] '{top_sym}' descartado "
                         f"de pila, se encontro '{cur_lex}' ({cur_type})"
@@ -212,16 +160,13 @@ class LL1Parser:
                     stack.pop()
                 continue
 
-            # ── NT en tope: consultar tabla ────────────────────────
             prod_list = (self.table.get((top_sym, cur_type)) or
                          self.table.get((top_sym, cur_lex)))
 
             if not prod_list:
-                # ── Recuperacion con FOLLOW ────────────────────────
                 follow_set = self.follow.get(top_sym, set())
 
                 if cur_type in follow_set or cur_lex in follow_set:
-                    # 'a' in FOLLOW(A): epsilon, no consumir token
                     self.recovery_log.append(
                         f"  [RECOVERY/skip_nt] {top_sym} -> epsilon "
                         f"('{cur_type}' in FOLLOW)"
@@ -230,7 +175,6 @@ class LL1Parser:
                         top_node.children.append(ParseNode("epsilon", lexeme="e"))
                     stack.pop()
                 else:
-                    # 'a' NOT in FOLLOW(A): descartar token
                     self.recovery_log.append(
                         f"  [RECOVERY/skip_token] '{cur_lex}' ({cur_type}) "
                         f"descartado (no en FOLLOW({top_sym}))"
@@ -243,13 +187,11 @@ class LL1Parser:
             production = prod_list[0]  # LL(1): exactamente una entrada
             stack.pop()
 
-            # ── Produccion epsilon ─────────────────────────────────
             if not production:
                 if top_node:
                     top_node.children.append(ParseNode("epsilon", lexeme="e"))
                 continue
 
-            # ── Produccion normal: apilar hijos en orden inverso ───
             child_nodes = []
             for sym in production:
                 child = ParseNode(sym)

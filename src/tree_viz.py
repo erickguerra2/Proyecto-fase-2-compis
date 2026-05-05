@@ -1,10 +1,4 @@
-"""
-tree_viz.py  –  Visualización del árbol de derivación sintáctica.
-
-Modos:
-  • ASCII   → imprime en consola (siempre disponible)
-  • Graphviz → genera imagen PNG/SVG (requiere graphviz instalado)
-"""
+"""Visualizacion del arbol de derivacion sintactica en ASCII y Graphviz."""
 
 from __future__ import annotations
 import os
@@ -13,16 +7,11 @@ from typing import Optional
 from src.parse_tree import ParseNode
 
 
-# ──────────────────────────────────────────────────────────────
-# ASCII (consola)
-# ──────────────────────────────────────────────────────────────
-
 def print_ascii_tree(root: ParseNode, title: str = "Árbol de Derivación") -> None:
-    """Imprime el árbol en la consola usando caracteres ASCII."""
+    """Imprime el árbol en la consola."""
     print(f"\n{'='*60}")
     print(f"  {title}")
     print(f"{'='*60}")
-    # Raíz sin conector
     _print_node(root, prefix="", is_last=True)
     print()
 
@@ -42,18 +31,11 @@ def _short_label(node: ParseNode) -> str:
     return f"<{node.symbol}>"
 
 
-# ──────────────────────────────────────────────────────────────
-# Graphviz
-# ──────────────────────────────────────────────────────────────
-
 def render_graphviz(root: ParseNode,
                     output_path: str = "parse_tree",
                     fmt: str = "png",
                     view: bool = False) -> Optional[str]:
-    """
-    Genera un PNG/SVG del árbol usando graphviz.
-    Devuelve la ruta del archivo generado, o None si graphviz no está disponible.
-    """
+    """Genera imagen del arbol con graphviz; devuelve None si no esta disponible."""
     try:
         import graphviz
     except ImportError:
@@ -110,7 +92,6 @@ def render_graphviz(root: ParseNode,
 
     add_node(root)
 
-    # Asegurar directorio de salida
     out_dir = os.path.dirname(output_path)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
@@ -121,21 +102,8 @@ def render_graphviz(root: ParseNode,
     return rendered
 
 
-# ──────────────────────────────────────────────────────────────
-# Derivación paso a paso (texto)
-# ──────────────────────────────────────────────────────────────
-
 def print_derivation(root: ParseNode) -> None:
-    """
-    Muestra la derivación por la izquierda (leftmost derivation).
-    Ejemplo:
-        Program
-        => StmtList
-        => Stmt
-        => ID ASSIGN Expr
-        => x ASSIGN Expr
-        ...
-    """
+    """Muestra la derivacion por la izquierda paso a paso."""
     print("\n" + "="*60)
     print("  Derivación por la Izquierda")
     print("="*60)
@@ -151,11 +119,9 @@ def print_derivation(root: ParseNode) -> None:
 
 
 def _leftmost(node: ParseNode, forms: list, current: list) -> None:
-    """Recorre el árbol en orden y registra las formas sentenciales."""
     if node.is_terminal:
         current.append(node.lexeme or node.symbol)
         return
-    # Reemplazar este NT por sus hijos en la forma sentencial actual
     idx = len(current)
     for child in node.children:
         if child.is_terminal:

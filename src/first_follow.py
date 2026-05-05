@@ -1,38 +1,4 @@
-"""
-first_follow.py  -  Conjuntos FIRST y FOLLOW para gramaticas LL(1).
-
-Teoria:
-
-  FIRST(alpha):
-    Conjunto de terminales que pueden aparecer al INICIO de cualquier
-    cadena derivable desde alpha.
-    Si alpha puede derivar epsilon, entonces epsilon pertenece a FIRST(alpha).
-
-    Reglas de calculo:
-      1. Si X es terminal: FIRST(X) = {X}
-      2. Si X -> epsilon:  epsilon in FIRST(X)
-      3. Si X -> Y1 Y2...Yk:
-           agregar FIRST(Y1) - {epsilon} a FIRST(X)
-           si epsilon in FIRST(Y1): agregar FIRST(Y2) - {epsilon}, etc.
-           si epsilon in FIRST(Yi) para todo i: agregar epsilon
-
-  FOLLOW(A):
-    Conjunto de terminales que pueden aparecer DESPUES de A en
-    alguna forma sentencial.
-    $ (fin de cadena) pertenece a FOLLOW del simbolo inicial.
-
-    Reglas de calculo:
-      1. $ in FOLLOW(S)  donde S es el simbolo inicial
-      2. Si A -> alpha B beta:
-           FIRST(beta) - {epsilon} subset FOLLOW(B)
-           si epsilon in FIRST(beta): FOLLOW(A) subset FOLLOW(B)
-      3. Si A -> alpha B:
-           FOLLOW(A) subset FOLLOW(B)
-
-  Importancia:
-    FIRST y FOLLOW se usan para construir la tabla de parsing LL(1)
-    y para saber cuando aplicar una produccion epsilon.
-"""
+"""Calculo de conjuntos FIRST y FOLLOW para gramaticas LL(1)."""
 
 from __future__ import annotations
 from typing import Dict, Set
@@ -43,18 +9,13 @@ EOF_SYM = "$"
 
 
 def compute_first(grammar: Grammar) -> Dict[str, Set[str]]:
-    """
-    Calcula FIRST(X) para cada simbolo X de la gramatica.
-    Devuelve un dict: simbolo -> conjunto de terminales (+ 'epsilon').
-    """
+    """Calcula FIRST(X) para cada simbolo de la gramatica."""
     first: Dict[str, Set[str]] = {}
 
-    # Inicializar: terminales tienen FIRST = {ellos mismos}
     for t in grammar.terminals:
         first[t] = {t}
     first[EPSILON] = {EPSILON}
 
-    # Inicializar NTs con conjunto vacio
     for nt in grammar.nonterminals:
         first[nt] = set()
 
@@ -66,10 +27,8 @@ def compute_first(grammar: Grammar) -> Dict[str, Set[str]]:
                 before = len(first[nt])
 
                 if not prod:
-                    # A -> epsilon
                     first[nt].add(EPSILON)
                 else:
-                    # A -> Y1 Y2 ... Yk
                     all_nullable = True
                     for sym in prod:
                         sym_first = first.get(sym, {sym})
@@ -107,10 +66,7 @@ def first_of_string(symbols: list, first: Dict[str, Set[str]]) -> Set[str]:
 
 def compute_follow(grammar: Grammar,
                    first: Dict[str, Set[str]]) -> Dict[str, Set[str]]:
-    """
-    Calcula FOLLOW(A) para cada no-terminal A.
-    Devuelve un dict: NT -> conjunto de terminales (+ '$').
-    """
+    """Calcula FOLLOW(A) para cada no-terminal de la gramatica."""
     follow: Dict[str, Set[str]] = {nt: set() for nt in grammar.nonterminals}
     follow[grammar.start].add(EOF_SYM)
 
@@ -131,7 +87,6 @@ def compute_follow(grammar: Grammar,
                         if EPSILON in beta_first:
                             follow[sym] |= follow[nt]
                     else:
-                        # sym es el ultimo simbolo: FOLLOW(nt) ⊆ FOLLOW(sym)
                         follow[sym] |= follow[nt]
 
                     if len(follow[sym]) != before:

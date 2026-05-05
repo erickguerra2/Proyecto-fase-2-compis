@@ -7,21 +7,18 @@ from nfa import State, EPSILON
 from dfa import DFAState
 
 
-# convierte un símbolo a texto legible para las etiquetas del diagrama
 def _safe_label(sym) -> str:
     if sym == EPSILON:  return "ε"
     if sym == "eof":    return "eof"
     if isinstance(sym, frozenset):
         s = sorted(sym)
         if len(s) > 6:
-            # conjunto grande, muestra solo el rango
             return f"{s[0]}-{s[-1]}"
         return "".join(s).replace('"', '\\"')
     c = str(sym)
     return c.replace("\\", "\\\\").replace('"', '\\"').replace("\n","\\n").replace("\t","\\t")
 
 
-# recorre el AFN y genera el código DOT para graficarlo
 def nfa_to_dot(start: State, title="NFA") -> str:
     lines = [f'digraph {title} {{', '  rankdir=LR;']
     visited, queue = set(), [start]
@@ -29,7 +26,6 @@ def nfa_to_dot(start: State, title="NFA") -> str:
         s = queue.pop(0)
         if s.id in visited: continue
         visited.add(s.id)
-        # los estados de aceptación van con doble círculo
         shape = "doublecircle" if s.is_accept else "circle"
         label = f"s{s.id}"
         if s.token_name: label += f"\\n{s.token_name}"
@@ -45,11 +41,9 @@ def nfa_to_dot(start: State, title="NFA") -> str:
     return "\n".join(lines)
 
 
-# genera el código DOT del AFD
 def dfa_to_dot(start: DFAState, all_states: list, title="DFA") -> str:
     lines = [f'digraph {title} {{', '  rankdir=LR;']
     for s in all_states:
-        # los estados de aceptación van con doble círculo
         shape = "doublecircle" if s.is_accept else "circle"
         label = f"D{s.id}"
         if s.token_name: label += f"\\n{s.token_name}"
@@ -63,7 +57,6 @@ def dfa_to_dot(start: DFAState, all_states: list, title="DFA") -> str:
     return "\n".join(lines)
 
 
-# genera los nodos del árbol recursivamente
 def _dot_nodes(node, lines):
     fp = "{" + ",".join(str(p) for p in sorted(node.firstpos)) + "}"
     lp = "{" + ",".join(str(p) for p in sorted(node.lastpos)) + "}"
@@ -81,7 +74,6 @@ def _dot_nodes(node, lines):
         _dot_nodes(child, lines)
 
 
-# genera la tabla de followpos
 def _dot_followpos_table(leaves, followpos, lines):
     rows = []
     for leaf in leaves:
@@ -99,7 +91,6 @@ def _dot_followpos_table(leaves, followpos, lines):
     lines.append(table)
 
 
-# construye el árbol con todos los pos
 def expr_tree_to_dot(postfix: list, token_name: str = "", title: str = "ExprTree") -> str:
     from pos_functions import analyze
 
@@ -118,20 +109,14 @@ def expr_tree_to_dot(postfix: list, token_name: str = "", title: str = "ExprTree
     if token_name:
         lines.append(f'  label="{token_name}"; labelloc=t; fontsize=16;')
 
-    # nodos del árbol
     _dot_nodes(root, lines)
-
-    # tabla de followpos
     _dot_followpos_table(leaves, followpos, lines)
-
-    # conecta la raíz a la tabla
     lines.append(f'  n{root.nid} -> followpos_table [style=invis];')
 
     lines.append("}")
     return "\n".join(lines)
 
 
-# guarda el DOT en disco e intenta renderizarlo con graphviz
 def render_dot(dot_src: str, out_path: str, fmt="png"):
     dot_file = out_path + ".dot"
     with open(dot_file, "w", encoding="utf-8") as f:
@@ -141,6 +126,5 @@ def render_dot(dot_src: str, out_path: str, fmt="png"):
                        check=True, capture_output=True)
         print(f"Imagen generada: {out_path}")
     except (subprocess.CalledProcessError, FileNotFoundError):
-        # si graphviz no está instalado queda el archivo .dot
         print(f"graphviz no disponible, archivo DOT en: {dot_file}")
     return dot_file

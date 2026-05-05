@@ -1,21 +1,4 @@
-"""
-cfg_grammar.py  –  Lector de gramáticas libres de contexto.
-
-Formato del archivo .grm
-------------------------
-    # Líneas que empiezan con '#' son comentarios
-    Program  -> StmtList
-    StmtList -> Stmt SEMI StmtList | Stmt
-    Stmt     -> ID ASSIGN Expr
-    Expr     -> Term PLUS Expr | Term MINUS Expr | Term
-    Term     -> NUM | ID
-
-Reglas:
-  • El primer no-terminal de la primera producción es el símbolo inicial.
-  • Los símbolos que aparecen a la izquierda de alguna '→' son no-terminales.
-  • Todo lo demás son terminales (deben coincidir con los tipos de token del léxico).
-  • 'epsilon' o 'ε' representa la producción vacía.
-"""
+"""Lector de gramáticas libres de contexto desde archivos .grm."""
 
 from __future__ import annotations
 from typing import Dict, List, Set
@@ -30,9 +13,6 @@ class Grammar:
         self.nonterminals: Set[str] = set()
         self.terminals: Set[str] = set()
 
-    # ------------------------------------------------------------------
-    # Carga desde archivo
-    # ------------------------------------------------------------------
     @classmethod
     def from_file(cls, path: str) -> "Grammar":
         g = cls()
@@ -68,9 +48,6 @@ class Grammar:
                         g.terminals.add(sym)
         return g
 
-    # ------------------------------------------------------------------
-    # Carga desde diccionario (útil en pruebas)
-    # ------------------------------------------------------------------
     @classmethod
     def from_dict(cls, start: str,
                   rules: Dict[str, List[List[str]]]) -> "Grammar":
@@ -85,9 +62,6 @@ class Grammar:
                         g.terminals.add(sym)
         return g
 
-    # ------------------------------------------------------------------
-    # Representación
-    # ------------------------------------------------------------------
     def __str__(self) -> str:
         lines = [f"Start: {self.start}"]
         for nt, prods in self.productions.items():

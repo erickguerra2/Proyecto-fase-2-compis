@@ -1,10 +1,6 @@
-"""
-Módulo 5 & 6: Conversión AFN → AFD (subconjuntos) + Minimización de Hopcroft.
-Los estados del NFA se identifican por su .id (int) para permitir uso en sets/dicts.
-"""
+"""Conversion AFN -> AFD (subconjuntos) y minimizacion de Hopcroft."""
 from nfa import State, EPSILON
 
-# Calcula todos los estados alcanzables solo con transiciones ε
 def epsilon_closure(state_list) -> frozenset:
     """Devuelve frozenset de ids de estados."""
     stack   = list(state_list)
@@ -19,10 +15,7 @@ def epsilon_closure(state_list) -> frozenset:
 
 
 def move(state_map: dict, symbol) -> dict:
-    """
-    state_map es un dict de id a State
-    Devuelve los estados alcanzables consumiendo symbol
-    """
+    """Devuelve los estados alcanzables desde state_map consumiendo symbol."""
     result = {}
     for s in state_map.values():
         for t in s.transitions.get(symbol, []):
@@ -34,16 +27,14 @@ def move(state_map: dict, symbol) -> dict:
     return result
 
 
-# Representa un estado del AFD, agrupa uno o más estados del AFN
-
 class DFAState:
     _id_counter = 0
 
     def __init__(self, nfa_id_set: frozenset):
         self.id          = DFAState._id_counter
         DFAState._id_counter += 1
-        self.nfa_ids     = nfa_id_set          # ids del AFN que agrupa
-        self.transitions = {}                   # char a DFAState
+        self.nfa_ids     = nfa_id_set
+        self.transitions = {}
         self.is_accept   = False
         self.token_name  = None
 
@@ -51,8 +42,6 @@ class DFAState:
         t = f"[{self.token_name}]" if self.is_accept else ""
         return f"D{self.id}{t}"
 
-
-# Convierte el AFN a AFD usando el algoritmo de subconjuntos
 
 def _get_alphabet_from_nfa(start: State) -> set:
     alphabet, visited = set(), set()
@@ -82,14 +71,12 @@ def nfa_to_dfa(nfa_start: State, nfa_accept_list: list) -> tuple:
     alphabet = _get_alphabet_from_nfa(nfa_start)
     accept_map = {s.id: (prio, tok) for s, prio, tok in nfa_accept_list}
 
-    # Calcula el estado inicial del AFD desde la clausura ε del AFN
     ids0, map0 = epsilon_closure([nfa_start])
     dfa_start  = DFAState(ids0)
     _mark_accept(dfa_start, accept_map)
 
     unmarked   = [dfa_start]
     dfa_by_ids = {ids0: dfa_start}
-    # Guarda el mapa de estados NFA para cada estado del AFD
     nfa_map_store = {ids0: map0}
 
     while unmarked:
@@ -122,12 +109,9 @@ def _mark_accept(dfa_s: DFAState, accept_map: dict):
                 dfa_s.token_name = tok
 
 
-# Minimiza el AFD con el algoritmo de Hopcroft
-
 def minimize_dfa(dfa_start: DFAState, all_states: list) -> tuple:
     DFAState._id_counter = 0
 
-    # Agrupa los estados por token para armar la partición inicial
     groups = {}
     for s in all_states:
         key = s.token_name if s.is_accept else "__reject__"
@@ -150,13 +134,11 @@ def minimize_dfa(dfa_start: DFAState, all_states: list) -> tuple:
             if len(split) > 1: changed = True
             new_parts.extend(split)
         partitions = new_parts
-        # Actualiza get_part con las nuevas particiones
         _part_map = {}
         for i, p in enumerate(partitions):
             for sid in p: _part_map[sid] = i
         def get_part(sid, pm=_part_map): return pm.get(sid, -1)
 
-    # Construye los estados del AFD minimizado a partir de las particiones
     min_states = []
     part_id_map = {}
     for i, group in enumerate(partitions):

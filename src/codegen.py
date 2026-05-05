@@ -15,7 +15,6 @@ def generate_lexer(
 ):
     lines = []
 
-    # Escribe la tabla de transiciones del DFA
     alphabet = set()
     for s in all_states:
         alphabet.update(s.transitions.keys())
@@ -43,7 +42,6 @@ def generate_lexer(
         lines.append("}")
     lines.append("")
 
-    # Mapea cada estado de aceptación con su nombre de token
     accept_map = {}
     for s in all_states:
         if s.is_accept and s.token_name:
@@ -57,7 +55,6 @@ def generate_lexer(
         "",
     ]
 
-    # Función yylex recorre el texto y devuelve los tokens
     lines += [
         "",
         "class LexError(Exception): pass",
@@ -108,11 +105,9 @@ def generate_lexer(
         "def _dispatch(tok: str, lxm: str):",
     ]
 
-    # Por cada token genera un bloque if con su acción
     action_map = {name: code for name, code in rules_actions}
     for tok_name, action in rules_actions:
         safe_name = repr(tok_name)
-        # Ajusta la indentación del código de acción
         action_lines = action.strip().splitlines()
         lines.append(f"    if tok == {safe_name}:")
         for al in action_lines:
@@ -123,7 +118,6 @@ def generate_lexer(
         "",
     ]
 
-    # Lee el archivo y lo tokeniza
     lines += [
         "",
         "if __name__ == '__main__':",

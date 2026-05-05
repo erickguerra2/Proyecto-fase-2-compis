@@ -1,0 +1,44 @@
+/* Gramatica de expresiones aritmeticas simples */
+/* Tokens producidos por ejemplo2.yal             */
+
+%token ID NUM
+%token PLUS MINUS TIMES DIVIDE
+%token LPAREN RPAREN
+%token ASSIGN SEMI
+%token WS NEWLINE
+
+IGNORE WS
+IGNORE NEWLINE
+
+%%
+
+program:
+    stmtlist
+    ;
+
+stmtlist:
+    stmt SEMI stmtlist
+    | stmt
+    ;
+
+stmt:
+    ID ASSIGN expr
+    ;
+
+expr:
+    expr PLUS term
+    | expr MINUS term
+    | term
+    ;
+
+term:
+    term TIMES factor
+    | term DIVIDE factor
+    | factor
+    ;
+
+factor:
+    LPAREN expr RPAREN
+    | NUM
+    | ID
+    ;

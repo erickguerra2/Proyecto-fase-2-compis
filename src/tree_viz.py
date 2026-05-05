@@ -28,10 +28,10 @@ def print_ascii_tree(root: ParseNode, title: str = "Árbol de Derivación") -> N
 
 
 def _print_node(node: ParseNode, prefix: str, is_last: bool) -> None:
-    connector = "└── " if is_last else "├── "
+    connector = "+-- " if is_last else "|-- "
     label = _short_label(node)
     print(prefix + connector + label)
-    child_prefix = prefix + ("    " if is_last else "│   ")
+    child_prefix = prefix + ("    " if is_last else "|   ")
     for i, child in enumerate(node.children):
         _print_node(child, child_prefix, i == len(node.children) - 1)
 

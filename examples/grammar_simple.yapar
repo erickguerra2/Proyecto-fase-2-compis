@@ -1,0 +1,18 @@
+/* Gramatica simple para expresiones aritmeticas */
+/* Usa los tokens de ejemplo2.yal: NUM, PLUS, MINUS, WS */
+
+%token NUM PLUS MINUS WS
+
+IGNORE WS
+
+%%
+
+expr:
+    expr PLUS term
+    | expr MINUS term
+    | term
+    ;
+
+term:
+    NUM
+    ;

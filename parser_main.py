@@ -10,14 +10,15 @@ reporta el conflicto y termina con error.  No hay fallback.
 Pipeline:
   .yal -> generator.py -> lexer.py -> tokens -> LL(1) table -> arbol
 
-USO:
+USO (formato .grm):
   python parser_main.py examples/grammar_ejemplo2.grm \\
          --yal examples/ejemplo2.yal --file test.txt
 
-  python parser_main.py examples/grammar_c.grm \\
-         --yal examples/expresiones.yal --file test.c
+USO (formato .yapar):
+  python parser_main.py --yapar examples/grammar_expr.yapar \\
+         --yal examples/ejemplo2.yal --file test.txt
 
-  python parser_main.py examples/grammar_ejemplo2.grm \\
+  python parser_main.py --yapar examples/grammar_expr.yapar \\
          --yal examples/ejemplo2.yal --file test.txt --show-grammar --viz
 """
 
@@ -39,6 +40,7 @@ from src.error_recovery import (production_level_report,
                                  global_min_edit_distance)
 from src.tree_viz       import print_ascii_tree, render_graphviz, print_derivation
 from src.afd_to_cfg     import print_afd_cfg_conversion, load_afd_from_lexer
+from src.yapar_parser   import parse_yapar, report_yapar, YAParError
 
 
 # ─────────────────────────────────────────────────────────────
@@ -103,13 +105,10 @@ def print_grammar(grammar: Grammar, title: str) -> None:
 
 
 def print_tokens(tokens: list) -> None:
-    visible = [(t, l) for t, l in tokens
-               if t not in ("WS", "WHITESPACE", "NEWLINE")]
-    skipped = len(tokens) - len(visible)
     print(f"\n{'='*64}")
-    print(f"  Tokens del Proyecto 1  ({len(tokens)} total, {skipped} omitidos)")
+    print(f"  Tokens ({len(tokens)} tras filtrar ignorados)")
     print(f"{'='*64}")
-    for i, (tok, lex) in enumerate(visible):
+    for i, (tok, lex) in enumerate(tokens):
         print(f"  [{i:3d}]  {tok:<26}  '{lex}'")
 
 
@@ -150,7 +149,11 @@ def main():
         description="Proyecto 2 - Parser Sintactico LL(1) puro",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("grammar")
+    grm_group = ap.add_mutually_exclusive_group(required=True)
+    grm_group.add_argument("grammar", nargs="?",
+        help="Archivo .grm de gramatica (formato propio)")
+    grm_group.add_argument("--yapar", "-p",
+        help="Archivo .yapar de gramatica (formato YAPar)")
 
     lex_group = ap.add_mutually_exclusive_group(required=True)
     lex_group.add_argument("--yal",   "-y")
@@ -189,9 +192,19 @@ def main():
         print_afd_cfg_conversion(trans, acc, start)
 
     # ── Gramatica ────────────────────────────────────────────
-    if not os.path.exists(args.grammar):
-        print(f"[ERROR] Gramatica no encontrada: {args.grammar}"); sys.exit(1)
-    grammar = Grammar.from_file(args.grammar)
+    ignored_tokens = set()
+    if args.yapar:
+        if not os.path.exists(args.yapar):
+            print(f"[ERROR] Archivo .yapar no encontrado: {args.yapar}"); sys.exit(1)
+        try:
+            grammar, ignored_tokens = parse_yapar(args.yapar)
+            report_yapar(args.yapar)
+        except YAParError as e:
+            print(f"[ERROR YAPAR] {e}"); sys.exit(1)
+    else:
+        if not os.path.exists(args.grammar):
+            print(f"[ERROR] Gramatica no encontrada: {args.grammar}"); sys.exit(1)
+        grammar = Grammar.from_file(args.grammar)
 
     if args.show_grammar:
         print_grammar(grammar, "Gramatica original G = (Sigma, N, P, S)")
@@ -249,6 +262,9 @@ def main():
     source = args.text if args.text else open(args.file, encoding="utf-8").read()
     print(f"\n[INPUT] {repr(source[:100])}{'...' if len(source)>100 else ''}")
     raw_tokens = tokenize_source(source, lexer_mod)
+    # Aplicar IGNORE del .yapar (+ siempre ignorar WS/NEWLINE internos)
+    skip = {"WS", "WHITESPACE", "NEWLINE"} | ignored_tokens
+    raw_tokens = [(t, l) for t, l in raw_tokens if t not in skip]
     print_tokens(raw_tokens)
 
     print("\n" + global_min_edit_distance(raw_tokens, grammar.terminals))

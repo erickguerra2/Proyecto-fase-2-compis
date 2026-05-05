@@ -23,7 +23,7 @@ def generate_lexer_from_yal(yal_path: str) -> str:
                        capture_output=True, text=True)
     if r.returncode != 0:
         print(r.stderr); sys.exit(1)
-    print(f"[OK] Lexer generado: {out_path}")
+    print(f"Lexer generado: {out_path}")
     return out_path
 
 
@@ -87,7 +87,7 @@ def main():
     ap.add_argument("--afd-to-cfg",   action="store_true")
     args = ap.parse_args()
 
-    # Lexer
+    # Generar y cargar lexer desde .yal
     lexer_path = generate_lexer_from_yal(args.yal) if args.yal else args.lexer
     lexer_mod  = load_lexer(lexer_path)
 
@@ -95,33 +95,34 @@ def main():
         trans, acc, start = load_afd_from_lexer(lexer_mod)
         print_afd_cfg_conversion(trans, acc, start)
 
-    # Gramatica
+    # Cargar gramatica
     ignored_tokens = set()
     if args.yapar:
         if not os.path.exists(args.yapar):
             print(f"[ERROR] No encontrado: {args.yapar}"); sys.exit(1)
         try:
             grammar, ignored_tokens = parse_yapar(args.yapar)
-            print(f"[OK] Gramatica cargada: {args.yapar}")
+            print(f"Gramatica cargada: {args.yapar}")
+            print(f"Tokens ignorados : {', '.join(sorted(ignored_tokens)) if ignored_tokens else 'ninguno'}")
         except YAParError as e:
             print(f"[ERROR YAPAR] {e}"); sys.exit(1)
     else:
         if not os.path.exists(args.grammar):
             print(f"[ERROR] No encontrado: {args.grammar}"); sys.exit(1)
         grammar = Grammar.from_file(args.grammar)
-        print(f"[OK] Gramatica cargada: {args.grammar}")
+        print(f"Gramatica cargada: {args.grammar}")
 
-    # Transformaciones
+    # Transformaciones para hacer la gramatica LL(1)
     if has_left_recursion(grammar):
         grammar = eliminate_left_recursion(grammar)
-        print("[OK] Recursividad izquierda eliminada")
+        print("Recursividad izquierda eliminada")
 
     if needs_factorization(grammar):
         grammar = left_factor(grammar)
-        print("[OK] Factorizacion aplicada")
+        print("Factorizacion aplicada")
 
     require_ll1(grammar)
-    print("[OK] Gramatica es LL(1)")
+    print("Gramatica LL(1) verificada")
 
     if args.show_grammar:
         print_grammar(grammar)
@@ -129,14 +130,19 @@ def main():
     if args.show_table:
         print_ll1_table(grammar)
 
-    # Tokens
+    if args.show_grammar:
+        print(report_first_follow(grammar))
+
+    # Tokenizar entrada
     source = args.text if args.text else open(args.file, encoding="utf-8").read()
     raw_tokens = tokenize_source(source, lexer_mod)
-    skip = {"WS", "WHITESPACE", "NEWLINE"} | ignored_tokens
+    skip   = {"WS", "WHITESPACE", "NEWLINE"} | ignored_tokens
     tokens = [(t, l) for t, l in raw_tokens if t not in skip]
-    print(f"[OK] {len(tokens)} tokens")
+    print(f"Tokens reconocidos: {len(tokens)}")
+    for tok, lex in tokens:
+        print(f"  {tok:<20} '{lex}'")
 
-    # Parsear
+    # Parsear con LL(1)
     try:
         ll1  = LL1Parser(grammar, tokens)
         tree = ll1.parse()
@@ -145,10 +151,10 @@ def main():
         sys.exit(1)
 
     if ll1.recovery_log:
-        print(f"[RECOVERY] {len(ll1.recovery_log)} correcciones aplicadas")
+        print(f"Recuperaciones aplicadas: {len(ll1.recovery_log)}")
         print(ll1.recovery_report())
 
-    print("[OK] Cadena aceptada")
+    print("Cadena aceptada")
 
     print_ascii_tree(tree, title="Arbol de Derivacion")
 

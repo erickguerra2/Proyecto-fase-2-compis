@@ -5,7 +5,7 @@ import sys, os, argparse, importlib.util
 sys.path.insert(0, os.path.dirname(__file__))
 
 from src.cfg_grammar    import Grammar
-from src.left_recursion import has_left_recursion, eliminate_left_recursion
+from src.left_recursion import has_left_recursion, eliminate_left_recursion, report_left_recursion
 from src.factorization  import needs_factorization, left_factor
 from src.ambiguity      import is_ambiguous
 from src.first_follow   import report_first_follow
@@ -113,6 +113,7 @@ def main():
         print(f"Gramatica cargada: {args.grammar}")
 
     # Transformaciones para hacer la gramatica LL(1)
+    print(report_left_recursion(grammar))
     if has_left_recursion(grammar):
         grammar = eliminate_left_recursion(grammar)
         print("Recursividad izquierda eliminada")

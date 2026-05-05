@@ -14,6 +14,21 @@ def has_left_recursion(grammar: Grammar) -> bool:
     return False
 
 
+def report_left_recursion(grammar: Grammar) -> str:
+    """Devuelve un reporte de que no-terminales tienen recursividad izquierda."""
+    found = []
+    for nt, prods in grammar.productions.items():
+        for prod in prods:
+            if prod and prod[0] == nt:
+                found.append(f"  {nt} -> {' '.join(prod)}")
+                break
+    if not found:
+        return "Recursividad izquierda: ninguna"
+    lines = [f"Recursividad izquierda detectada en {len(found)} no-terminal(es):"]
+    lines.extend(found)
+    return "\n".join(lines)
+
+
 def eliminate_left_recursion(grammar: Grammar) -> Grammar:
     """Elimina la recursividad izquierda directa de todos los no-terminales."""
     new_prods: dict = {}

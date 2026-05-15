@@ -7,7 +7,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from src.cfg_grammar    import Grammar
 from src.ll1.left_recursion    import has_left_recursion, eliminate_left_recursion, report_left_recursion
 from src.ll1.factorization     import needs_factorization, left_factor
-from src.ambiguity      import is_ambiguous
+from src.ambiguity        import report_fix_ambiguity
+from src.error_recovery   import report_fix_production_issues
 from src.first_follow   import report_first_follow
 from src.ll1.ll1_table         import build_ll1_table, print_ll1_table, report_ll1, LL1Parser, LL1ParseError
 from src.afd_to_cfg     import print_afd_cfg_conversion, load_afd_from_lexer
@@ -83,7 +84,7 @@ def main():
     ap.add_argument("--afd-to-cfg",   action="store_true")
     args = ap.parse_args()
 
-    # Generar y cargar lexer desde .yal
+    # Lexer
     lexer_path = generate_lexer_from_yal(args.yal) if args.yal else args.lexer
     lexer_mod  = load_lexer(lexer_path)
 
@@ -91,7 +92,7 @@ def main():
         trans, acc, start = load_afd_from_lexer(lexer_mod)
         print_afd_cfg_conversion(trans, acc, start)
 
-    # Cargar gramatica
+    # Gramatica
     ignored_tokens = set()
     if args.yapar:
         if not os.path.exists(args.yapar):
@@ -108,13 +109,19 @@ def main():
         grammar = Grammar.from_file(args.grammar)
         print(f"Gramatica cargada: {args.grammar}")
 
-    # Transformaciones para hacer la gramatica LL(1)
+    grammar, prod_report, prod_applied = report_fix_production_issues(grammar)
+    print(prod_report)
+
+    grammar, ambiguity_report, already_applied = report_fix_ambiguity(grammar)
+    already_applied |= prod_applied
+    print(ambiguity_report)
+
     print(report_left_recursion(grammar))
-    if has_left_recursion(grammar):
+    if "left_recursion_eliminated" not in already_applied and has_left_recursion(grammar):
         grammar = eliminate_left_recursion(grammar)
         print("Recursividad izquierda eliminada")
 
-    if needs_factorization(grammar):
+    if "factorized" not in already_applied and needs_factorization(grammar):
         grammar = left_factor(grammar)
         print("Factorizacion aplicada")
 
@@ -127,7 +134,7 @@ def main():
     print(report_first_follow(grammar))
     print_ll1_table(grammar)
 
-    # Tokenizar entrada
+    # Tokenizar
     source = args.text if args.text else open(args.file, encoding="utf-8").read()
     raw_tokens = tokenize_source(source, lexer_mod)
     skip   = {"WS", "WHITESPACE", "NEWLINE"} | ignored_tokens
@@ -136,7 +143,7 @@ def main():
     for tok, lex in tokens:
         print(f"  {tok:<20} '{lex}'")
 
-    # Parsear con LL(1)
+    # Parsear
     try:
         ll1 = LL1Parser(grammar, tokens)
         ll1.parse()

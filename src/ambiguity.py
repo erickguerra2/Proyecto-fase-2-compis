@@ -1,6 +1,7 @@
-"""Deteccion de indicadores de ambiguedad en gramaticas libres de contexto."""
+"""Deteccion y correccion de indicadores de ambiguedad en gramaticas libres de contexto."""
 
 from __future__ import annotations
+from typing import Tuple, List, Set
 from src.cfg_grammar import Grammar
 
 
@@ -84,3 +85,65 @@ def report_ambiguity(grammar: Grammar) -> str:
 def is_ambiguous(grammar: Grammar) -> bool:
     """True si se detectaron indicadores de ambiguedad."""
     return len(detect_ambiguity(grammar)) > 0
+
+
+def fix_ambiguity(grammar: Grammar) -> Tuple[Grammar, List[str], Set[str]]:
+    """Corrige ambiguedades. Retorna (gramatica, cambios, transformaciones_aplicadas)."""
+    from src.ll1.factorization   import needs_factorization, left_factor
+    from src.ll1.left_recursion  import has_left_recursion, eliminate_left_recursion
+
+    warnings  = detect_ambiguity(grammar)
+    changes: List[str] = []
+    applied:  Set[str] = set()
+    kinds     = {w.kind for w in warnings}
+
+    new_rules = {}
+    for nt, prods in grammar.productions.items():
+        seen: list = []
+        for p in prods:
+            if p not in seen:
+                seen.append(p)
+        if len(seen) < len(prods):
+            changes.append(f"  [{nt}] producciones duplicadas eliminadas")
+        eps = [p for p in seen if not p]
+        non_eps = [p for p in seen if p]
+        if len(eps) > 1:
+            changes.append(f"  [{nt}] epsilons duplicados reducidos a uno")
+            eps = [[]]
+        new_rules[nt] = non_eps + eps
+
+    grammar = Grammar.from_dict(grammar.start, new_rules)
+
+    if "PREFIJO_COMUN" in kinds and needs_factorization(grammar):
+        grammar = left_factor(grammar)
+        changes.append("  Factorizacion izquierda aplicada (prefijos comunes)")
+        applied.add("factorized")
+
+    if "REC_AMBOS_LADOS" in kinds and has_left_recursion(grammar):
+        grammar = eliminate_left_recursion(grammar)
+        changes.append("  Recursividad izquierda eliminada (recursividad bilateral)")
+        applied.add("left_recursion_eliminated")
+
+    return grammar, changes, applied
+
+
+def report_fix_ambiguity(grammar: Grammar) -> Tuple[Grammar, str, Set[str]]:
+    """Corrige ambiguedades y retorna (gramatica, reporte, transformaciones_aplicadas)."""
+    warnings = detect_ambiguity(grammar)
+    if not warnings:
+        return grammar, "Ambiguedad: sin indicadores, no se requieren correcciones.", set()
+
+    grammar, changes, applied = fix_ambiguity(grammar)
+    remaining = detect_ambiguity(grammar)
+
+    lines = [f"Correccion de Ambiguedad: {len(warnings)} indicador(es) encontrado(s)"]
+    if changes:
+        lines.append("  Correcciones aplicadas:")
+        lines.extend(changes)
+    if remaining:
+        lines.append(f"  ADVERTENCIA: {len(remaining)} indicador(es) no resuelto(s) automaticamente:")
+        for w in remaining:
+            lines.append(str(w))
+    else:
+        lines.append("  Gramatica sin indicadores de ambiguedad tras correcciones.")
+    return grammar, "\n".join(lines), applied

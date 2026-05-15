@@ -136,6 +136,134 @@ def production_level_report(grammar) -> str:
     return "\n".join(lines)
 
 
+def _compute_unit_pairs(grammar) -> set:
+    """Pares (A, B) donde A =>* B via producciones unitarias (cierre transitivo)."""
+    pairs = {(nt, nt) for nt in grammar.nonterminals}
+    changed = True
+    while changed:
+        changed = False
+        new_pairs = set()
+        for (a, b) in pairs:
+            for prod in grammar.productions.get(b, []):
+                if len(prod) == 1 and prod[0] in grammar.nonterminals:
+                    c = prod[0]
+                    if (a, c) not in pairs:
+                        new_pairs.add((a, c))
+                        changed = True
+        pairs |= new_pairs
+    return pairs
+
+
+def has_unit_productions(grammar) -> bool:
+    """True si existe alguna produccion unitaria A -> B (B no-terminal)."""
+    for nt, prods in grammar.productions.items():
+        for prod in prods:
+            if len(prod) == 1 and prod[0] in grammar.nonterminals:
+                return True
+    return False
+
+
+def eliminate_unit_productions(grammar):
+    """Elimina A -> B copiando las producciones no-unitarias de B a A."""
+    from src.cfg_grammar import Grammar
+    pairs = _compute_unit_pairs(grammar)
+    new_rules = {nt: [] for nt in grammar.productions}
+
+    for (a, b) in pairs:
+        for prod in grammar.productions.get(b, []):
+            if len(prod) == 1 and prod[0] in grammar.nonterminals:
+                continue
+            if prod not in new_rules[a]:
+                new_rules[a].append(list(prod))
+
+    for nt, prods in grammar.productions.items():
+        if not new_rules[nt]:
+            if [] in prods:
+                new_rules[nt] = [[]]
+
+    return Grammar.from_dict(grammar.start, new_rules)
+
+
+def has_epsilon_only_nts(grammar) -> list:
+    """Retorna lista de NTs cuya unica produccion es epsilon (excepto el simbolo inicial)."""
+    result = []
+    for nt, prods in grammar.productions.items():
+        if nt == grammar.start:
+            continue
+        if prods and all(len(p) == 0 for p in prods):
+            result.append(nt)
+    return result
+
+
+def inline_epsilon_only_nts(grammar):
+    """Elimina NTs solo-epsilon sustituyendolos en cada produccion donde aparecen."""
+    from src.cfg_grammar import Grammar
+    eps_only = set(has_epsilon_only_nts(grammar))
+    if not eps_only:
+        return grammar
+
+    new_rules = {}
+    for nt, prods in grammar.productions.items():
+        if nt in eps_only:
+            continue
+        new_prods = []
+        for prod in prods:
+            new_prod = [sym for sym in prod if sym not in eps_only]
+            if new_prod not in new_prods:
+                new_prods.append(new_prod)
+        new_rules[nt] = new_prods if new_prods else [[]]
+
+    return Grammar.from_dict(grammar.start, new_rules)
+
+
+def fix_production_issues(grammar) -> tuple:
+    """Corrige NTs solo-epsilon y producciones unitarias. Retorna (gramatica, cambios, aplicados)."""
+    changes = []
+    applied = set()
+
+    eps_nts = has_epsilon_only_nts(grammar)
+    if eps_nts:
+        grammar = inline_epsilon_only_nts(grammar)
+        for nt in eps_nts:
+            changes.append(f"  [{nt}] NT solo-epsilon eliminado e inlineado donde se usaba")
+        applied.add("epsilon_only_inlined")
+
+    if has_unit_productions(grammar):
+        unit_found = [
+            f"{nt} -> {prod[0]}"
+            for nt, prods in grammar.productions.items()
+            for prod in prods
+            if len(prod) == 1 and prod[0] in grammar.nonterminals
+        ]
+        grammar = eliminate_unit_productions(grammar)
+        for u in unit_found:
+            changes.append(f"  Produccion unitaria eliminada: {u}")
+        applied.add("unit_productions_eliminated")
+
+    return grammar, changes, applied
+
+
+def report_fix_production_issues(grammar) -> tuple:
+    """Detecta y corrige producciones unitarias y NTs solo-epsilon. Retorna (gramatica, reporte, aplicados)."""
+    eps_nts   = has_epsilon_only_nts(grammar)
+    has_units = has_unit_productions(grammar)
+
+    if not eps_nts and not has_units:
+        return grammar, "Producciones: sin problemas unitarios ni NTs solo-epsilon.", set()
+
+    grammar, changes, applied = fix_production_issues(grammar)
+    remaining_eps   = has_epsilon_only_nts(grammar)
+    remaining_units = has_unit_productions(grammar)
+
+    lines = ["Correccion de Producciones:"]
+    lines.extend(changes)
+    if remaining_eps or remaining_units:
+        lines.append("  ADVERTENCIA: algunos problemas no pudieron resolverse automaticamente.")
+    else:
+        lines.append("  Producciones corregidas sin problemas residuales.")
+    return grammar, "\n".join(lines), applied
+
+
 def global_min_edit_distance(tokens: list, grammar_terminals: set) -> str:
     """Estima el minimo de ediciones necesarias para que la entrada sea valida."""
     visible = [(t, l) for t, l in tokens if t not in ("WS", "WHITESPACE", "NEWLINE")]

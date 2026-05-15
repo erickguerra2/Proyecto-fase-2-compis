@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Dict, List, Tuple, Optional
 from src.cfg_grammar  import Grammar
 from src.first_follow import compute_first, compute_follow, first_of_string, EPSILON, EOF_SYM
-from src.parse_tree   import ParseNode
 
 LLTable = Dict[Tuple[str, str], List[List[str]]]
 
@@ -118,8 +117,8 @@ class LL1Parser:
     def is_ll1(self) -> bool:
         return len(self.conflicts) == 0
 
-    def parse(self) -> ParseNode:
-        """Ejecuta el parsing predictivo con pila explicita."""
+    def parse(self) -> bool:
+        """Ejecuta el parsing predictivo con pila explicita. Retorna True si acepta."""
         if not self.is_ll1():
             raise LL1ParseError(
                 f"La gramatica tiene {len(self.conflicts)} conflicto(s) LL(1).\n"
@@ -130,14 +129,10 @@ class LL1Parser:
         pos = 0
         self.recovery_log = []
 
-        root = ParseNode(self.grammar.start)
-        stack: List[Tuple[str, Optional[ParseNode]]] = [
-            (EOF_SYM, None),
-            (self.grammar.start, root),
-        ]
+        stack: List[str] = [EOF_SYM, self.grammar.start]
 
         while stack:
-            top_sym, top_node = stack[-1]
+            top_sym = stack[-1]
             cur_type, cur_lex = input_tokens[pos]
 
             if top_sym == EOF_SYM:
@@ -148,8 +143,6 @@ class LL1Parser:
 
             if top_sym in self.grammar.terminals:
                 if self._match(top_sym, cur_type, cur_lex):
-                    if top_node:
-                        top_node.lexeme = cur_lex
                     stack.pop()
                     pos += 1
                 else:
@@ -171,8 +164,6 @@ class LL1Parser:
                         f"  [RECOVERY/skip_nt] {top_sym} -> epsilon "
                         f"('{cur_type}' in FOLLOW)"
                     )
-                    if top_node:
-                        top_node.children.append(ParseNode("epsilon", lexeme="e"))
                     stack.pop()
                 else:
                     self.recovery_log.append(
@@ -184,25 +175,16 @@ class LL1Parser:
                         raise LL1ParseError("Fin de entrada durante recuperacion.")
                 continue
 
-            production = prod_list[0]  # LL(1): exactamente una entrada
+            production = prod_list[0]
             stack.pop()
 
             if not production:
-                if top_node:
-                    top_node.children.append(ParseNode("epsilon", lexeme="e"))
                 continue
 
-            child_nodes = []
-            for sym in production:
-                child = ParseNode(sym)
-                if top_node:
-                    top_node.children.append(child)
-                child_nodes.append((sym, child))
+            for sym in reversed(production):
+                stack.append(sym)
 
-            for sym, node in reversed(child_nodes):
-                stack.append((sym, node))
-
-        return root
+        return True
 
     def recovery_report(self) -> str:
         if not self.recovery_log:

@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Pipeline principal: .yal + .yapar -> tokens -> tabla LL(1) -> arbol."""
+"""Pipeline principal: .yal + .yapar -> tokens -> tabla LL(1)."""
 
 import sys, os, argparse, importlib.util
 sys.path.insert(0, os.path.dirname(__file__))
 
 from src.cfg_grammar    import Grammar
-from src.left_recursion import has_left_recursion, eliminate_left_recursion, report_left_recursion
-from src.factorization  import needs_factorization, left_factor
+from src.ll1.left_recursion    import has_left_recursion, eliminate_left_recursion, report_left_recursion
+from src.ll1.factorization     import needs_factorization, left_factor
 from src.ambiguity      import is_ambiguous
 from src.first_follow   import report_first_follow
-from src.ll1_table      import build_ll1_table, print_ll1_table, report_ll1, LL1Parser, LL1ParseError
-from src.tree_viz       import print_ascii_tree, render_graphviz, print_derivation
+from src.ll1.ll1_table         import build_ll1_table, print_ll1_table, report_ll1, LL1Parser, LL1ParseError
 from src.afd_to_cfg     import print_afd_cfg_conversion, load_afd_from_lexer
 from src.yapar_parser   import parse_yapar, report_yapar, YAParError
 
@@ -19,7 +18,7 @@ def generate_lexer_from_yal(yal_path: str) -> str:
     import subprocess
     out_path = os.path.join("output", os.path.basename(yal_path).replace(".yal", "_generated.py"))
     os.makedirs("output", exist_ok=True)
-    r = subprocess.run([sys.executable, "src/generator.py", yal_path, "-o", out_path],
+    r = subprocess.run([sys.executable, "src/common/generator.py", yal_path, "-o", out_path],
                        capture_output=True, text=True)
     if r.returncode != 0:
         print(r.stderr); sys.exit(1)
@@ -79,9 +78,6 @@ def main():
     txt_group.add_argument("--text", "-t")
     txt_group.add_argument("--file", "-f")
 
-    ap.add_argument("--viz",          action="store_true")
-    ap.add_argument("--out",          default="output/parse_tree")
-    ap.add_argument("--derivation",   "-d", action="store_true")
     ap.add_argument("--show-grammar", action="store_true")
     ap.add_argument("--show-table",   action="store_true")
     ap.add_argument("--afd-to-cfg",   action="store_true")
@@ -142,8 +138,8 @@ def main():
 
     # Parsear con LL(1)
     try:
-        ll1  = LL1Parser(grammar, tokens)
-        tree = ll1.parse()
+        ll1 = LL1Parser(grammar, tokens)
+        ll1.parse()
     except LL1ParseError as e:
         print(f"[ERROR SINTACTICO] {e}")
         sys.exit(1)
@@ -153,15 +149,6 @@ def main():
         print(ll1.recovery_report())
 
     print("Cadena aceptada")
-
-    print_ascii_tree(tree, title="Arbol de Derivacion")
-
-    if args.derivation:
-        print_derivation(tree)
-
-    if args.viz:
-        os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
-        render_graphviz(tree, output_path=args.out, fmt="png")
 
 
 if __name__ == "__main__":

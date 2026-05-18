@@ -64,17 +64,16 @@ def load_grammar(yapar_path: str) -> tuple:
 
 
 def preprocess(grammar: Grammar) -> tuple:
-    """Preprocesamiento comun a todos los parsers."""
+    """Limpieza estructural comun a todos los parsers (unitarias, epsilon, duplicados)."""
     grammar, prod_report, prod_applied = report_fix_production_issues(grammar)
     print(prod_report)
-
-    grammar, amb_report, amb_applied = report_fix_ambiguity(grammar)
-    print(amb_report)
-
-    return grammar, prod_applied | amb_applied
-
+    return grammar, prod_applied
 
 def run_ll1(grammar: Grammar, tokens: list, applied: set) -> None:
+    grammar, amb_report, amb_applied = report_fix_ambiguity(grammar)
+    print(amb_report)
+    applied = applied | amb_applied
+
     print(report_left_recursion(grammar))
     if "left_recursion_eliminated" not in applied and has_left_recursion(grammar):
         grammar = eliminate_left_recursion(grammar)

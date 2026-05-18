@@ -1,0 +1,24 @@
+let digit  = ['0'-'9']
+let letter = ['a'-'z''A'-'Z''_']
+let alnum  = ['a'-'z''A'-'Z''0'-'9''_']
+let ws     = [' ''\t']
+
+rule gettoken =
+    ws+          { return WS }
+  | ['\n']       { return NEWLINE }
+  | digit+       { return NUM }
+  | "class"      { return CLASS }
+  | "def"        { return DEF }
+  | "return"     { return RETURN }
+  | letter alnum* { return ID }
+  | '+'          { return PLUS }
+  | '-'          { return MINUS }
+  | '='          { return ASSIGN }
+  | ','          { return COMMA }
+  | ';'          { return SEMI }
+  | '('          { return LPAREN }
+  | ')'          { return RPAREN }
+  | '{'          { return LBRACE }
+  | '}'          { return RBRACE }
+  | '['          { return LBRACKET }
+  | ']'          { return RBRACKET }

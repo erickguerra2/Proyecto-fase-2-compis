@@ -1,0 +1,12 @@
+class Animal {
+def speak(name) {
+return name ;
+}
+}
+def fib(n) {
+return fib(n - 1) + fib(n - 2) ;
+}
+def main() {
+x = [1 , 2 , 3] ;
+result = fib(10) ;
+}

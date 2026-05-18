@@ -62,14 +62,14 @@ def generate_lexer(
         "",
         "def yylex(text: str):",
         '    """',
-        '    Tokeniza \'text\' y genera tuplas token y lexema.',
-        '    Lanza LexError si encuentra un carácter no reconocido.',
+        '    Tokeniza text y retorna lista de (token, lexema).',
+        '    Lanza LexError si encuentra un caracter no reconocido.',
         '    """',
         "    pos = 0",
         "    tokens = []",
         "    while pos < len(text):",
         "        state     = START_STATE",
-        "        last_acc  = None     # token y posición final",
+        "        last_acc  = None",
         "        i         = pos",
         "        while i < len(text):",
         "            ch = text[i]",
@@ -81,8 +81,7 @@ def generate_lexer(
         "            if state in ACCEPT:",
         "                last_acc = (ACCEPT[state], i)",
         "        if last_acc is None:",
-        "            raise LexError(f'Error léxico en posición {pos}: '",
-        "                           f'{repr(text[pos])}')",
+        "            raise LexError(f'Error lexico en posicion {pos}: {repr(text[pos])}')",
         "        tok, end = last_acc",
         "        lexeme = text[pos:end]",
         "        tokens.append((tok, lexeme))",
@@ -95,7 +94,7 @@ def generate_lexer(
         '    """Aplica las acciones definidas en el .yal a cada token."""',
         "    results = []",
         "    for tok, lexeme in tokens:",
-        "        lxm = lexeme   # variable disponible en acciones",
+        "        lxm = lexeme",
         "        result = _dispatch(tok, lxm)",
         "        if result is not None:",
         "            results.append(result)",
@@ -105,7 +104,6 @@ def generate_lexer(
         "def _dispatch(tok: str, lxm: str):",
     ]
 
-    action_map = {name: code for name, code in rules_actions}
     for tok_name, action in rules_actions:
         safe_name = repr(tok_name)
         action_lines = action.strip().splitlines()

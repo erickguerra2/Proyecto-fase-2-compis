@@ -115,26 +115,6 @@ def format_errors(errors: List[SyntaxError_]) -> str:
     return "\n".join(lines)
 
 
-def production_level_report(grammar) -> str:
-    """Identifica producciones que podrian generar derivaciones no deseadas."""
-    lines = ["Analisis production-level:"]
-    issues = []
-
-    for nt, prods in grammar.productions.items():
-        if prods == [[]] or prods == []:
-            issues.append(f"  {nt} -> solo epsilon: podria generar derivaciones no deseadas")
-
-        for p in prods:
-            if len(p) == 1 and p[0] in grammar.nonterminals:
-                issues.append(f"  {nt} -> {p[0]}: produccion unitaria, verificar si es intencional")
-
-    if issues:
-        lines.append(f"  {len(issues)} advertencia(s):")
-        lines.extend(issues)
-    else:
-        lines.append("  Sin producciones problematicas detectadas.")
-    return "\n".join(lines)
-
 
 def _compute_unit_pairs(grammar) -> set:
     """Pares (A, B) donde A =>* B via producciones unitarias (cierre transitivo)."""

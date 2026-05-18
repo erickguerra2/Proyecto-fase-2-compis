@@ -1096,17 +1096,18 @@ class LexError(Exception): pass
 
 def yylex(text: str):
     """
-    Tokeniza text y retorna lista de (token, lexema, linea).
+    Tokeniza text y retorna lista de (token, lexema, linea, columna).
     Lanza LexError si encuentra un caracter no reconocido.
     """
-    pos = 0
+    pos  = 0
     line = 1
+    col  = 1
     tokens = []
     while pos < len(text):
-        line_at_token = line
         state     = START_STATE
         last_acc  = None
         i         = pos
+        tok_line, tok_col = line, col
         while i < len(text):
             ch = text[i]
             nxt = TRANSITIONS.get(state, {}).get(ch, -1)
@@ -1117,11 +1118,16 @@ def yylex(text: str):
             if state in ACCEPT:
                 last_acc = (ACCEPT[state], i)
         if last_acc is None:
-            raise LexError(f'Linea {line}: caracter no reconocido {repr(text[pos])}')
+            raise LexError(f'Error lexico en linea {line}, columna {col}: {repr(text[pos])}')
         tok, end = last_acc
         lexeme = text[pos:end]
-        line += lexeme.count('\n')
-        tokens.append((tok, lexeme, line_at_token))
+        tokens.append((tok, lexeme, tok_line, tok_col))
+        for ch in lexeme:
+            if ch == '\n':
+                line += 1
+                col   = 1
+            else:
+                col  += 1
         pos = end
     return tokens
 
@@ -1130,11 +1136,11 @@ def yylex(text: str):
 def apply_actions(tokens: list):
     """Aplica las acciones definidas en el .yal a cada token."""
     results = []
-    for tok, lexeme, line in tokens:
+    for tok, lexeme in tokens:
         lxm = lexeme
         result = _dispatch(tok, lxm)
         if result is not None:
-            results.append((result, lxm, line) if isinstance(result, str) else (*result, line))
+            results.append(result)
     return results
 
 

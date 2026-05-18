@@ -46,7 +46,15 @@ def load_lexer(lexer_path: str):
 
 def tokenize_source(text: str, lexer_mod) -> list:
     try:
-        return lexer_mod.yylex(text)
+        raw = lexer_mod.yylex(text)
+        # Normaliza a (token, lexema, linea, col); lexers antiguos devuelven 2-tuplas
+        result = []
+        for tok in raw:
+            if len(tok) >= 4:
+                result.append((tok[0], tok[1], tok[2], tok[3]))
+            else:
+                result.append((tok[0], tok[1], None, None))
+        return result
     except Exception as e:
         print(f"[ERROR LEXICO] {e}"); sys.exit(1)
 
@@ -180,10 +188,11 @@ def main():
     source     = args.text if args.text else open(args.file, encoding="utf-8").read()
     raw_tokens = tokenize_source(source, lexer_mod)
     skip       = {"WS", "WHITESPACE", "NEWLINE"} | ignored_tokens
-    tokens     = [(t, l) for t, l in raw_tokens if t not in skip]
+    tokens     = [tok for tok in raw_tokens if tok[0] not in skip]
     print(f"Tokens reconocidos: {len(tokens)}")
-    for tok, lex in tokens:
-        print(f"  {tok:<20} '{lex}'")
+    for tok, lex, ln, col in tokens:
+        pos = f" [{ln}:{col}]" if ln is not None else ""
+        print(f"  {tok:<20} '{lex}'{pos}")
 
     if args.parser == "ll1":
         run_ll1(grammar, tokens, applied)

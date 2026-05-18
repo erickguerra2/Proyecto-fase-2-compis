@@ -57,8 +57,8 @@ class SLR1Parser:
 
     def __init__(self, grammar: Grammar, tokens: List[Tuple]) -> None:
         self.grammar = grammar
-        self.tokens  = [(t, l) for t, l in tokens
-                        if t not in ("WS", "WHITESPACE", "NEWLINE")]
+        self.tokens  = [tok for tok in tokens
+                        if tok[0] not in ("WS", "WHITESPACE", "NEWLINE")]
         self.table, self.states, self.aug_start = build_slr1_table(grammar)
         self.recovery_log: List[str] = []
 
@@ -74,21 +74,24 @@ class SLR1Parser:
                 + conflicts
             )
 
-        input_tokens = self.tokens + [(EOF_SYM, EOF_SYM)]
+        input_tokens = self.tokens + [(EOF_SYM, EOF_SYM, None, None)]
         pos   = 0
         stack = [0]
         self.recovery_log = []
 
         while True:
-            state              = stack[-1]
-            cur_type, cur_lex  = input_tokens[pos]
+            state   = stack[-1]
+            tok     = input_tokens[pos]
+            cur_type, cur_lex = tok[0], tok[1]
+            cur_line, cur_col = tok[2], tok[3]
+            pos_str = f" [línea {cur_line}, col {cur_col}]" if cur_line is not None else ""
 
             action = (self.table.get_action(state, cur_type) or
                       self.table.get_action(state, cur_lex))
 
             if action is None:
                 self.recovery_log.append(
-                    f"  [RECOVERY] token '{cur_lex}' ({cur_type}) descartado"
+                    f"  [RECOVERY]{pos_str} token '{cur_lex}' ({cur_type}) descartado"
                 )
                 pos += 1
                 if pos >= len(input_tokens):

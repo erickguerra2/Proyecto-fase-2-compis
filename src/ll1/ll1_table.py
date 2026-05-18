@@ -103,8 +103,8 @@ class LL1Parser:
     def __init__(self, grammar: Grammar,
                  tokens: List[Tuple]) -> None:
         self.grammar   = grammar
-        self.tokens    = [(t, l) for t, l in tokens
-                          if t not in ("WS", "WHITESPACE", "NEWLINE")]
+        self.tokens    = [tok for tok in tokens
+                          if tok[0] not in ("WS", "WHITESPACE", "NEWLINE")]
         self.table, self.conflicts = build_ll1_table(grammar)
         self.first     = compute_first(grammar)
         self.follow    = compute_follow(grammar, self.first)
@@ -121,7 +121,7 @@ class LL1Parser:
                 + "\n".join(str(c) for c in self.conflicts[:3])
             )
 
-        input_tokens = self.tokens + [(EOF_SYM, EOF_SYM)]
+        input_tokens = self.tokens + [(EOF_SYM, EOF_SYM, None, None)]
         pos = 0
         self.recovery_log = []
 
@@ -129,14 +129,17 @@ class LL1Parser:
 
         while stack:
             top_sym = stack[-1]
-            cur_type, cur_lex = input_tokens[pos]
+            tok      = input_tokens[pos]
+            cur_type, cur_lex = tok[0], tok[1]
+            cur_line, cur_col = tok[2], tok[3]
+            pos_str = f" [línea {cur_line}, col {cur_col}]" if cur_line is not None else ""
 
             if top_sym == EOF_SYM:
                 if cur_type == EOF_SYM:
                     break
                 else:
                     raise LL1ParseError(
-                        f"Entrada no consumida: token inesperado '{cur_lex}' ({cur_type})"
+                        f"Entrada no consumida: token inesperado '{cur_lex}' ({cur_type}){pos_str}"
                     )
 
             if top_sym in self.grammar.terminals:
@@ -145,7 +148,7 @@ class LL1Parser:
                     pos += 1
                 else:
                     self.recovery_log.append(
-                        f"  [RECOVERY] se esperaba '{top_sym}', "
+                        f"  [RECOVERY]{pos_str} se esperaba '{top_sym}', "
                         f"se encontro '{cur_lex}' ({cur_type}) — simbolo descartado de pila"
                     )
                     stack.pop()
@@ -159,12 +162,12 @@ class LL1Parser:
 
                 if cur_type in follow_set or cur_lex in follow_set:
                     self.recovery_log.append(
-                        f"  [RECOVERY] {top_sym} expandido a epsilon ('{cur_type}' en FOLLOW)"
+                        f"  [RECOVERY]{pos_str} {top_sym} expandido a epsilon ('{cur_type}' en FOLLOW)"
                     )
                     stack.pop()
                 else:
                     self.recovery_log.append(
-                        f"  [RECOVERY] token '{cur_lex}' ({cur_type}) "
+                        f"  [RECOVERY]{pos_str} token '{cur_lex}' ({cur_type}) "
                         f"descartado — no hay produccion para {top_sym}"
                     )
                     pos += 1

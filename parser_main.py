@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from src.cfg_grammar         import Grammar
 from src.ambiguity           import report_fix_ambiguity
-from src.error_recovery      import report_fix_production_issues, global_min_edit_distance
+from src.error_recovery      import report_fix_production_issues
 from src.first_follow        import report_first_follow
 from src.yapar_parser        import parse_yapar, YAParError
 
@@ -14,7 +14,7 @@ from src.ll1.left_recursion  import has_left_recursion, eliminate_left_recursion
 from src.ll1.factorization   import needs_factorization, left_factor
 from src.ll1.ll1_table       import build_ll1_table, print_ll1_table, LL1Parser, LL1ParseError
 
-from src.lr.lr0              import build_lr0, report_lr0
+from src.lr.lr0              import build_lr0, report_lr0, report_augmented_grammar, report_gotos
 from src.slr1.slr1           import build_slr1_table, SLR1Parser, SLR1ParseError, report_slr1
 from src.lalr.lalr           import build_lalr_table, LALRParser, LALRParseError, report_lalr
 
@@ -71,6 +71,20 @@ def load_grammar(yapar_path: str) -> tuple:
         print(f"[ERROR YAPAR] {e}"); sys.exit(1)
 
 
+def print_grammar_productions(grammar: Grammar) -> None:
+    """Muestra la gramatica con todas sus producciones."""
+    print("\nGramatica:")
+    for prod in grammar.productions.get(grammar.start, []):
+        body = " ".join(prod) if prod else "ε"
+        print(f"  {grammar.start} -> {body}")
+    for nt, prods in grammar.productions.items():
+        if nt == grammar.start:
+            continue
+        for prod in prods:
+            body = " ".join(prod) if prod else "ε"
+            print(f"  {nt} -> {body}")
+
+
 def preprocess(grammar: Grammar) -> tuple:
     """Limpieza estructural comun a todos los parsers (unitarias, epsilon, duplicados)."""
     grammar, prod_report, prod_applied = report_fix_production_issues(grammar)
@@ -90,6 +104,8 @@ def run_ll1(grammar: Grammar, tokens: list, applied: set) -> None:
     if "factorized" not in applied and needs_factorization(grammar):
         grammar = left_factor(grammar)
         print("Factorizacion aplicada")
+
+    print_grammar_productions(grammar)
 
     _, conflicts = build_ll1_table(grammar)
     if conflicts:
@@ -113,12 +129,13 @@ def run_ll1(grammar: Grammar, tokens: list, applied: set) -> None:
 
 
 def run_slr1(grammar: Grammar, tokens: list) -> None:
+    print(report_augmented_grammar(grammar))
     states, aug_start = build_lr0(grammar)
     print(report_lr0(states))
-
-    print(report_slr1(grammar))
+    print(report_gotos(states))
 
     table, _, _ = build_slr1_table(grammar)
+    print(table.report())
     if table.has_conflicts():
         print(f"[ADVERTENCIA] {len(table.conflicts)} conflicto(s) SLR(1):")
         for c in table.conflicts: print(str(c))
@@ -140,9 +157,13 @@ def run_slr1(grammar: Grammar, tokens: list) -> None:
 
 
 def run_lalr(grammar: Grammar, tokens: list) -> None:
-    print(report_lalr(grammar))
+    print(report_augmented_grammar(grammar))
 
-    table, _, _ = build_lalr_table(grammar)
+    table, states, _ = build_lalr_table(grammar)
+    print(report_lr0(states))
+    print(report_gotos(states))
+
+    print(table.report())
     if table.has_conflicts():
         print(f"[ADVERTENCIA] {len(table.conflicts)} conflicto(s) LALR:")
         for c in table.conflicts: print(str(c))
@@ -184,6 +205,7 @@ def main():
 
     grammar, ignored_tokens = load_grammar(args.yapar)
     grammar, applied        = preprocess(grammar)
+    print_grammar_productions(grammar)
 
     source     = args.text if args.text else open(args.file, encoding="utf-8").read()
     raw_tokens = tokenize_source(source, lexer_mod)
@@ -193,7 +215,6 @@ def main():
     for tok, lex, ln, col in tokens:
         pos = f" [{ln}:{col}]" if ln is not None else ""
         print(f"  {tok:<20} '{lex}'{pos}")
-    print(global_min_edit_distance(tokens, grammar.terminals))
 
     if args.parser == "ll1":
         run_ll1(grammar, tokens, applied)

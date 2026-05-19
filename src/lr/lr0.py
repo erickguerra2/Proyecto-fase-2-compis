@@ -132,3 +132,32 @@ def report_lr0(states: List[LR0State]) -> str:
         for sym, target in sorted(state.transitions.items()):
             lines.append(f"    GOTO({sym}) -> Estado {target}")
     return "\n".join(lines)
+
+
+def report_augmented_grammar(grammar: Grammar) -> str:
+    """Muestra la gramatica expandida (aumentada con S' -> S)."""
+    aug_grammar, aug_start = augment_grammar(grammar)
+    lines = ["Gramatica expandida (aumentada):"]
+    for prod in aug_grammar.productions.get(aug_start, []):
+        body = " ".join(prod) if prod else "ε"
+        lines.append(f"  {aug_start} -> {body}")
+    for nt, prods in aug_grammar.productions.items():
+        if nt == aug_start:
+            continue
+        for prod in prods:
+            body = " ".join(prod) if prod else "ε"
+            lines.append(f"  {nt} -> {body}")
+    return "\n".join(lines)
+
+
+def report_gotos(states: List[LR0State]) -> str:
+    """Reporte de transiciones GOTO de estado 0 al final."""
+    lines = [f"Transiciones GOTO (estados 0 .. {len(states) - 1}):"]
+    for state in states:
+        trans = sorted(state.transitions.items())
+        if not trans:
+            continue
+        lines.append(f"  Estado {state.id}:")
+        for sym, tgt in trans:
+            lines.append(f"    GOTO({sym}) -> Estado {tgt}")
+    return "\n".join(lines)

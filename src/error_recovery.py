@@ -255,6 +255,6 @@ def global_min_edit_distance(tokens: list, grammar_terminals: set) -> str:
     else:
         lines.append(f"  Tokens no reconocidos por la gramatica: {len(unknown)}")
         for t, l in unknown[:5]:
-            lines.append(f"    '{l}' ({t}) -> candidato a eliminar o sustituir")
+            lines.append(f"    '{l}' ({t})")
         lines.append(f"  Costo minimo de edicion estimado: >= {len(unknown)}")
     return "\n".join(lines)

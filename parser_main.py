@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from src.cfg_grammar         import Grammar
 from src.ambiguity           import report_fix_ambiguity
-from src.error_recovery      import report_fix_production_issues
+from src.error_recovery      import report_fix_production_issues, global_min_edit_distance
 from src.first_follow        import report_first_follow
 from src.yapar_parser        import parse_yapar, YAParError
 
@@ -193,6 +193,7 @@ def main():
     for tok, lex, ln, col in tokens:
         pos = f" [{ln}:{col}]" if ln is not None else ""
         print(f"  {tok:<20} '{lex}'{pos}")
+    print(global_min_edit_distance(tokens, grammar.terminals))
 
     if args.parser == "ll1":
         run_ll1(grammar, tokens, applied)

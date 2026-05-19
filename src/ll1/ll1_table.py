@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Dict, List, Tuple, Optional
 from src.cfg_grammar  import Grammar
 from src.first_follow import compute_first, compute_follow, first_of_string, EPSILON, EOF_SYM
+from src.error_recovery import panic_mode_recovery, phrase_level_recovery, SyntaxError_, format_errors
 
 LLTable = Dict[Tuple[str, str], List[List[str]]]
 
@@ -108,7 +109,7 @@ class LL1Parser:
         self.table, self.conflicts = build_ll1_table(grammar)
         self.first     = compute_first(grammar)
         self.follow    = compute_follow(grammar, self.first)
-        self.recovery_log: List[str] = []
+        self.recovery_log: List[SyntaxError_] = []
 
     def is_ll1(self) -> bool:
         return len(self.conflicts) == 0
@@ -147,11 +148,17 @@ class LL1Parser:
                     stack.pop()
                     pos += 1
                 else:
-                    self.recovery_log.append(
-                        f"  [RECOVERY]{pos_str} se esperaba '{top_sym}', "
-                        f"se encontro '{cur_lex}' ({cur_type}) — simbolo descartado de pila"
-                    )
-                    stack.pop()
+                    before = len(input_tokens)
+                    new_tokens, err = phrase_level_recovery(input_tokens, pos, top_sym)
+                    if err:
+                        self.recovery_log.append(err)
+                        input_tokens = new_tokens
+                        if len(new_tokens) > before:
+                            pass  # token insertado en pos: top_sym sigue en pila, prox iter lo consume
+                        else:
+                            stack.pop()  # token eliminado o sin cambio: descarta terminal esperado
+                    else:
+                        stack.pop()
                 continue
 
             prod_list = (self.table.get((top_sym, cur_type)) or
@@ -161,16 +168,18 @@ class LL1Parser:
                 follow_set = self.follow.get(top_sym, set())
 
                 if cur_type in follow_set or cur_lex in follow_set:
-                    self.recovery_log.append(
-                        f"  [RECOVERY]{pos_str} {top_sym} expandido a epsilon ('{cur_type}' en FOLLOW)"
+                    err = SyntaxError_(
+                        pos=pos,
+                        token=tok,
+                        expected=f"produccion para {top_sym}",
+                        recovery=f"phrase-level: epsilon ('{cur_type}' en FOLLOW de {top_sym})"
                     )
+                    self.recovery_log.append(err)
                     stack.pop()
                 else:
-                    self.recovery_log.append(
-                        f"  [RECOVERY]{pos_str} token '{cur_lex}' ({cur_type}) "
-                        f"descartado — no hay produccion para {top_sym}"
-                    )
-                    pos += 1
+                    new_pos, _, err = panic_mode_recovery(input_tokens, pos)
+                    self.recovery_log.append(err)
+                    pos = new_pos
                     if pos >= len(input_tokens):
                         raise LL1ParseError("Fin de entrada durante recuperacion.")
                 continue
@@ -189,9 +198,7 @@ class LL1Parser:
     def recovery_report(self) -> str:
         if not self.recovery_log:
             return "  Sin acciones de recuperacion LL(1)."
-        lines = [f"  {len(self.recovery_log)} accion(es) de recuperacion (FOLLOW-based):"]
-        lines.extend(self.recovery_log)
-        return "\n".join(lines)
+        return format_errors(self.recovery_log)
 
     @staticmethod
     def _match(expected: str, tok_type: str, tok_lexeme: str) -> bool:

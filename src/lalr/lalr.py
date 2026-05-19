@@ -7,6 +7,7 @@ from src.cfg_grammar import Grammar
 from src.first_follow import compute_first, first_of_string, EPSILON, EOF_SYM
 from src.lr.lr0 import augment_grammar, LR0State
 from src.lr.lr_table import LRTable, LRAction, SHIFT, REDUCE, ACCEPT
+from src.error_recovery import panic_mode_recovery, SyntaxError_, format_errors
 
 
 @dataclass(frozen=True)
@@ -187,7 +188,7 @@ class LALRParser:
         self.tokens  = [tok for tok in tokens
                         if tok[0] not in ("WS", "WHITESPACE", "NEWLINE")]
         self.table, self.states, self.aug_start = build_lalr_table(grammar)
-        self.recovery_log: List[str] = []
+        self.recovery_log: List[SyntaxError_] = []
 
     def is_lalr(self) -> bool:
         return not self.table.has_conflicts()
@@ -217,10 +218,9 @@ class LALRParser:
                       self.table.get_action(state, cur_lex))
 
             if action is None:
-                self.recovery_log.append(
-                    f"  [RECOVERY]{pos_str} token '{cur_lex}' ({cur_type}) descartado"
-                )
-                pos += 1
+                new_pos, _, err = panic_mode_recovery(input_tokens, pos)
+                self.recovery_log.append(err)
+                pos = new_pos
                 if pos >= len(input_tokens):
                     raise LALRParseError("Fin de entrada durante recuperacion.")
                 continue
@@ -245,9 +245,7 @@ class LALRParser:
     def recovery_report(self) -> str:
         if not self.recovery_log:
             return "  Sin acciones de recuperacion LALR."
-        lines = [f"  {len(self.recovery_log)} accion(es) de recuperacion:"]
-        lines.extend(self.recovery_log)
-        return "\n".join(lines)
+        return format_errors(self.recovery_log)
 
 
 def report_lalr(grammar: Grammar) -> str:

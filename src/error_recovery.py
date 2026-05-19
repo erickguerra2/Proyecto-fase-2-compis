@@ -9,7 +9,7 @@ DEFAULT_SYNC_TOKENS: Set[str] = {
     "LBRACE", "{",
     "RBRACE", "}",
     "RPAREN", ")",
-    "EOF",
+    "EOF", "$",
 }
 
 
@@ -31,7 +31,7 @@ class SyntaxError_:
         if self.recovery:
             msg += f"\n    Recuperacion [{self.recovery}]"
         if self.skipped:
-            skipped_str = ", ".join(f"'{l}'" for _, l in self.skipped[:5])
+            skipped_str = ", ".join(f"'{tok[1]}'" for tok in self.skipped[:5])
             msg += f"\n    Tokens descartados: {skipped_str}"
         return msg
 
@@ -49,7 +49,7 @@ def panic_mode_recovery(
     pos = error_pos
 
     while pos < len(tokens):
-        tok_type, tok_lexeme = tokens[pos]
+        tok_type, tok_lexeme = tokens[pos][0], tokens[pos][1]
         if tok_type in sync_tokens or tok_lexeme in sync_tokens:
             break
         skipped.append(tokens[pos])
@@ -84,7 +84,7 @@ def phrase_level_recovery(
             "RPAREN": ")", "RBRACE": "}"
         }
         lexeme = lexeme_map.get(expected_type, expected_type)
-        new_tokens.insert(error_pos, (expected_type, lexeme))
+        new_tokens.insert(error_pos, (expected_type, lexeme, None, None))
         err = SyntaxError_(
             pos=error_pos,
             token=tokens[error_pos] if error_pos < len(tokens) else ("EOF", ""),
@@ -246,7 +246,7 @@ def report_fix_production_issues(grammar) -> tuple:
 
 def global_min_edit_distance(tokens: list, grammar_terminals: set) -> str:
     """Estima el minimo de ediciones necesarias para que la entrada sea valida."""
-    visible = [(t, l) for t, l in tokens if t not in ("WS", "WHITESPACE", "NEWLINE")]
+    visible = [(tok[0], tok[1]) for tok in tokens if tok[0] not in ("WS", "WHITESPACE", "NEWLINE")]
     unknown = [(t, l) for t, l in visible if t not in grammar_terminals]
     lines   = ["Analisis global (minimo de edicion):"]
     if not unknown:

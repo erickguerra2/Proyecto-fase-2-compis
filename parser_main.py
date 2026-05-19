@@ -105,8 +105,6 @@ def run_ll1(grammar: Grammar, tokens: list, applied: set) -> None:
         grammar = left_factor(grammar)
         print("Factorizacion aplicada")
 
-    print_grammar_productions(grammar)
-
     _, conflicts = build_ll1_table(grammar)
     if conflicts:
         print(f"[ERROR] La gramatica no es LL(1): {len(conflicts)} conflicto(s)")
@@ -205,16 +203,12 @@ def main():
 
     grammar, ignored_tokens = load_grammar(args.yapar)
     grammar, applied        = preprocess(grammar)
-    print_grammar_productions(grammar)
 
     source     = args.text if args.text else open(args.file, encoding="utf-8").read()
     raw_tokens = tokenize_source(source, lexer_mod)
     skip       = {"WS", "WHITESPACE", "NEWLINE"} | ignored_tokens
     tokens     = [tok for tok in raw_tokens if tok[0] not in skip]
     print(f"Tokens reconocidos: {len(tokens)}")
-    for tok, lex, ln, col in tokens:
-        pos = f" [{ln}:{col}]" if ln is not None else ""
-        print(f"  {tok:<20} '{lex}'{pos}")
 
     if args.parser == "ll1":
         run_ll1(grammar, tokens, applied)

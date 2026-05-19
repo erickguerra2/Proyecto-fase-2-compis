@@ -114,15 +114,15 @@ def fix_ambiguity(grammar: Grammar) -> Tuple[Grammar, List[str], Set[str]]:
 
     grammar = Grammar.from_dict(grammar.start, new_rules)
 
-    if "PREFIJO_COMUN" in kinds and needs_factorization(grammar):
-        grammar = left_factor(grammar)
-        changes.append("  Factorizacion izquierda aplicada (prefijos comunes)")
-        applied.add("factorized")
-
     if "REC_AMBOS_LADOS" in kinds and has_left_recursion(grammar):
         grammar = eliminate_left_recursion(grammar)
         changes.append("  Recursividad izquierda eliminada (recursividad bilateral)")
         applied.add("left_recursion_eliminated")
+
+    if "PREFIJO_COMUN" in kinds and needs_factorization(grammar):
+        grammar = left_factor(grammar)
+        changes.append("  Factorizacion izquierda aplicada (prefijos comunes)")
+        applied.add("factorized")
 
     return grammar, changes, applied
 

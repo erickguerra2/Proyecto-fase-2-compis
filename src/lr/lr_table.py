@@ -54,8 +54,13 @@ class LRConflict:
         return "reduce-reduce"
 
     def __str__(self) -> str:
-        return (f"  [{self.kind}] Estado {self.state}, simbolo '{self.symbol}': "
-                f"{self.existing} vs {self.incoming}")
+        if self.kind == "reduce-reduce":
+            return (f"  [reduce-reduce] Estado {self.state}, simbolo '{self.symbol}': "
+                    f"{self.existing} vs {self.incoming}"
+                    f" -> conflicto reduce-reduce, la gramatica es ambigua")
+        return (f"  [shift-reduce] Estado {self.state}, simbolo '{self.symbol}': "
+                f"{self.existing} vs {self.incoming}"
+                f" -> conflicto shift-reduce, no parseable por este tipo de parser")
 
 
 class LRTable:
@@ -86,10 +91,19 @@ class LRTable:
     def has_conflicts(self) -> bool:
         return len(self.conflicts) > 0
 
+    def has_reduce_reduce_conflicts(self) -> bool:
+        return any(c.kind == "reduce-reduce" for c in self.conflicts)
+
     def report(self) -> str:
         if not self.conflicts:
             return "Tabla LR: sin conflictos."
-        lines = [f"Tabla LR: {len(self.conflicts)} conflicto(s):"]
+        sr = [c for c in self.conflicts if c.kind == "shift-reduce"]
+        rr = [c for c in self.conflicts if c.kind == "reduce-reduce"]
+        lines = [f"Tabla LR: {len(self.conflicts)} conflictos:"]
+        if rr:
+            lines.append(f"  {len(rr)} reduce-reduce: la gramatica es ambigua, dos derivaciones para la misma cadena")
+        if sr:
+            lines.append(f"  {len(sr)} shift-reduce: no parseable por este parser sin resolver el conflicto")
         for c in self.conflicts:
             lines.append(str(c))
         return "\n".join(lines)

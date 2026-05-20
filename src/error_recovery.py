@@ -24,7 +24,7 @@ class SyntaxError_:
         self.skipped  = skipped or []
 
     def __str__(self):
-        tok_str = f"'{self.token[1]}' ({self.token[0]})" if self.token else "EOF"
+        tok_str = f"'{self.token[1]}' tipo {self.token[0]}" if self.token else "EOF"
         msg = f"  Error en pos {self.pos}: token inesperado {tok_str}"
         if self.expected:
             msg += f"\n    Se esperaba: {self.expected}"
@@ -108,7 +108,7 @@ def format_errors(errors: List[SyntaxError_]) -> str:
     """Formatea la lista de errores para mostrar al usuario."""
     if not errors:
         return "  Sin errores sintacticos."
-    lines = [f"  {len(errors)} error(es) sintactico(s) encontrado(s):"]
+    lines = [f"  {len(errors)} errores sintacticos encontrados:"]
     for i, e in enumerate(errors, 1):
         lines.append(f"\n  Error #{i}:")
         lines.append(str(e))
@@ -255,6 +255,6 @@ def global_min_edit_distance(tokens: list, grammar_terminals: set) -> str:
     else:
         lines.append(f"  Tokens no reconocidos por la gramatica: {len(unknown)}")
         for t, l in unknown[:5]:
-            lines.append(f"    '{l}' ({t})")
+            lines.append(f"    '{l}' tipo {t}")
         lines.append(f"  Costo minimo de edicion estimado: >= {len(unknown)}")
     return "\n".join(lines)

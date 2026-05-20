@@ -29,8 +29,8 @@ class LR0Item:
 
     def __str__(self) -> str:
         symbols = list(self.prod)
-        symbols.insert(self.dot, "•")
-        body = " ".join(symbols) if symbols else "•"
+        symbols.insert(self.dot, "*")
+        body = " ".join(symbols) if symbols else "*"
         return f"{self.nt} -> {body}"
 
 
@@ -126,7 +126,7 @@ def build_lr0(grammar: Grammar) -> Tuple[List[LR0State], str]:
 
 def report_lr0(states: List[LR0State]) -> str:
     """Reporte textual del automata LR(0)."""
-    lines = [f"Automata LR(0): {len(states)} estado(s)"]
+    lines = [f"Automata LR(0): {len(states)} estados"]
     for state in states:
         lines.append(str(state))
         for sym, target in sorted(state.transitions.items()):
@@ -139,13 +139,13 @@ def report_augmented_grammar(grammar: Grammar) -> str:
     aug_grammar, aug_start = augment_grammar(grammar)
     lines = ["Gramatica expandida (aumentada):"]
     for prod in aug_grammar.productions.get(aug_start, []):
-        body = " ".join(prod) if prod else "ε"
+        body = " ".join(prod) if prod else "e"
         lines.append(f"  {aug_start} -> {body}")
     for nt, prods in aug_grammar.productions.items():
         if nt == aug_start:
             continue
         for prod in prods:
-            body = " ".join(prod) if prod else "ε"
+            body = " ".join(prod) if prod else "e"
             lines.append(f"  {nt} -> {body}")
     return "\n".join(lines)
 

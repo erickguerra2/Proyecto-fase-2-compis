@@ -78,22 +78,7 @@ def parse_yapar(path: str) -> Tuple[Grammar, Set[str]]:
                 if sym not in grammar.nonterminals:
                     grammar.terminals.add(sym)
 
+    # Los tokens declarados con %token son terminales aunque no aparezcan en producciones
+    grammar.terminals |= declared_tokens
+
     return grammar, ignored_tokens
-
-
-def report_yapar(path: str) -> None:
-    """Imprime un resumen del archivo .yapar cargado."""
-    grammar, ignored = parse_yapar(path)
-
-    print(f"\n{'='*64}")
-    print(f"  YAPar: {path}")
-    print(f"{'='*64}")
-    print(f"  Simbolo inicial : {grammar.start}")
-    print(f"  No-terminales   : {', '.join(sorted(grammar.nonterminals))}")
-    print(f"  Terminales      : {', '.join(sorted(grammar.terminals))}")
-    print(f"  Tokens ignorados: {', '.join(sorted(ignored)) if ignored else 'ninguno'}")
-    print()
-    for nt, prods in grammar.productions.items():
-        for p in prods:
-            body = ' '.join(p) if p else 'epsilon'
-            print(f"  {nt:<24} -> {body}")

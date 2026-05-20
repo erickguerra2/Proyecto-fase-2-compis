@@ -25,7 +25,7 @@ class YalSpec:
 
 
 def _remove_comments(text: str) -> str:
-    # elimina comentarios (* ... *)
+    # elimina comentarios de bloque estilo yalex
     result, i = [], 0
     while i < len(text):
         if text[i:i+2] == "(*":

@@ -8,6 +8,7 @@ from src.first_follow import compute_first, first_of_string, EPSILON, EOF_SYM
 from src.lr.lr0 import augment_grammar, LR0State
 from src.lr.lr_table import LRTable, LRAction, SHIFT, REDUCE, ACCEPT
 from src.error_recovery import panic_mode_recovery, SyntaxError_, format_errors
+from src.parse_tree import ParseTree
 
 
 @dataclass(frozen=True)
@@ -35,8 +36,8 @@ class LR1Item:
 
     def __str__(self) -> str:
         syms = list(self.prod)
-        syms.insert(self.dot, "•")
-        body = " ".join(syms) if syms else "•"
+        syms.insert(self.dot, "*")
+        body = " ".join(syms) if syms else "*"
         return f"[{self.nt} -> {body}, {self.lookahead}]"
 
 
@@ -184,35 +185,36 @@ class LALRParser:
     """Parser LALR con pila de estados."""
 
     def __init__(self, grammar: Grammar, tokens: List[Tuple]) -> None:
-        self.grammar = grammar
-        self.tokens  = [tok for tok in tokens
-                        if tok[0] not in ("WS", "WHITESPACE", "NEWLINE")]
+        self.grammar    = grammar
+        self.tokens     = [tok for tok in tokens
+                           if tok[0] not in ("WS", "WHITESPACE", "NEWLINE")]
         self.table, self.states, self.aug_start = build_lalr_table(grammar)
         self.recovery_log: List[SyntaxError_] = []
+        self.parse_tree = None
 
     def is_lalr(self) -> bool:
         return not self.table.has_conflicts()
 
     def parse(self) -> bool:
-        """Ejecuta el parsing LALR. Retorna True si acepta."""
+        """Ejecuta el parsing LALR. Retorna True si acepta. Construye self.parse_tree."""
         if not self.is_lalr():
             conflicts = "\n".join(str(c) for c in self.table.conflicts[:3])
             raise LALRParseError(
-                f"La gramatica tiene {len(self.table.conflicts)} conflicto(s) LALR.\n"
+                f"La gramatica tiene {len(self.table.conflicts)} conflictos LALR.\n"
                 + conflicts
             )
 
         input_tokens = self.tokens + [(EOF_SYM, EOF_SYM, None, None)]
-        pos   = 0
-        stack = [0]
+        pos        = 0
+        stack      = [0]
+        tree_stack: List[ParseTree] = []
         self.recovery_log = []
+        self.parse_tree   = None
 
         while True:
             state   = stack[-1]
             tok     = input_tokens[pos]
             cur_type, cur_lex = tok[0], tok[1]
-            cur_line, cur_col = tok[2], tok[3]
-            pos_str = f" [línea {cur_line}, col {cur_col}]" if cur_line is not None else ""
 
             action = (self.table.get_action(state, cur_type) or
                       self.table.get_action(state, cur_lex))
@@ -227,27 +229,29 @@ class LALRParser:
 
             if action.kind == SHIFT:
                 stack.append(action.state)
+                label = cur_lex if cur_lex and cur_lex != cur_type else cur_type
+                tree_stack.append(ParseTree(label))
                 pos += 1
 
             elif action.kind == REDUCE:
+                children = []
                 for _ in range(len(action.prod)):
                     stack.pop()
+                    children.insert(0, tree_stack.pop())
                 goto = self.table.get_goto(stack[-1], action.nt)
                 if goto is None:
                     raise LALRParseError(
                         f"GOTO indefinido: estado {stack[-1]}, NT '{action.nt}'"
                     )
                 stack.append(goto)
+                node = ParseTree(action.nt, children) if children else ParseTree(action.nt, [ParseTree("e")])
+                tree_stack.append(node)
 
             elif action.kind == ACCEPT:
+                self.parse_tree = tree_stack[-1] if tree_stack else None
                 return True
 
     def recovery_report(self) -> str:
         if not self.recovery_log:
             return "  Sin acciones de recuperacion LALR."
         return format_errors(self.recovery_log)
-
-
-def report_lalr(grammar: Grammar) -> str:
-    table, _, _ = build_lalr_table(grammar)
-    return table.report()

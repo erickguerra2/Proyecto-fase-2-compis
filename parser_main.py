@@ -5,7 +5,7 @@ import sys, os, argparse, importlib.util
 sys.path.insert(0, os.path.dirname(__file__))
 
 from src.cfg_grammar         import Grammar
-from src.ambiguity           import report_fix_ambiguity
+from src.ambiguity           import (detect_ll1_problems, full_chain_analysis)
 from src.error_recovery      import report_fix_production_issues
 from src.first_follow        import report_first_follow
 from src.yapar_parser        import parse_yapar, YAParError
@@ -15,8 +15,8 @@ from src.ll1.factorization   import needs_factorization, left_factor
 from src.ll1.ll1_table       import build_ll1_table, print_ll1_table, LL1Parser, LL1ParseError
 
 from src.lr.lr0              import build_lr0, report_lr0, report_augmented_grammar, report_gotos
-from src.slr1.slr1           import build_slr1_table, SLR1Parser, SLR1ParseError, report_slr1
-from src.lalr.lalr           import build_lalr_table, LALRParser, LALRParseError, report_lalr
+from src.slr1.slr1           import build_slr1_table, SLR1Parser, SLR1ParseError
+from src.lalr.lalr           import build_lalr_table, LALRParser, LALRParseError
 
 
 def generate_lexer_from_yal(yal_path: str) -> str:
@@ -47,7 +47,7 @@ def load_lexer(lexer_path: str):
 def tokenize_source(text: str, lexer_mod) -> list:
     try:
         raw = lexer_mod.yylex(text)
-        # Normaliza a (token, lexema, linea, col); lexers antiguos devuelven 2-tuplas
+        # Normaliza a token, lexema, linea, col; lexers antiguos devuelven 2-tuplas
         result = []
         for tok in raw:
             if len(tok) >= 4:
@@ -71,43 +71,32 @@ def load_grammar(yapar_path: str) -> tuple:
         print(f"[ERROR YAPAR] {e}"); sys.exit(1)
 
 
-def print_grammar_productions(grammar: Grammar) -> None:
-    """Muestra la gramatica con todas sus producciones."""
-    print("\nGramatica:")
-    for prod in grammar.productions.get(grammar.start, []):
-        body = " ".join(prod) if prod else "ε"
-        print(f"  {grammar.start} -> {body}")
-    for nt, prods in grammar.productions.items():
-        if nt == grammar.start:
-            continue
-        for prod in prods:
-            body = " ".join(prod) if prod else "ε"
-            print(f"  {nt} -> {body}")
 
-
-def preprocess(grammar: Grammar) -> tuple:
-    """Limpieza estructural comun a todos los parsers (unitarias, epsilon, duplicados)."""
-    grammar, prod_report, prod_applied = report_fix_production_issues(grammar)
+def run_ll1(grammar: Grammar, tokens: list) -> None:
+    grammar, prod_report, _ = report_fix_production_issues(grammar)
     print(prod_report)
-    return grammar, prod_applied
 
-def run_ll1(grammar: Grammar, tokens: list, applied: set) -> None:
-    grammar, amb_report, amb_applied = report_fix_ambiguity(grammar)
+    # Detectar ambiguedad con la gramatica original, mostrar arboles y corregir
+    grammar, amb_report, _ = full_chain_analysis(grammar, tokens, None, "LL(1)", fix=True, pre_parse=True)
     print(amb_report)
-    applied = applied | amb_applied
+
+    # Preparacion LL(1): eliminar recursividad izquierda y factorizar
+    ll1_problems = detect_ll1_problems(grammar)
+    if ll1_problems:
+        print(f"Problemas LL(1), no ambiguedad: {len(ll1_problems)} prefijos comunes -> se aplica factorizacion")
 
     print(report_left_recursion(grammar))
-    if "left_recursion_eliminated" not in applied and has_left_recursion(grammar):
+    if has_left_recursion(grammar):
         grammar = eliminate_left_recursion(grammar)
         print("Recursividad izquierda eliminada")
 
-    if "factorized" not in applied and needs_factorization(grammar):
+    if needs_factorization(grammar):
         grammar = left_factor(grammar)
         print("Factorizacion aplicada")
 
     _, conflicts = build_ll1_table(grammar)
     if conflicts:
-        print(f"[ERROR] La gramatica no es LL(1): {len(conflicts)} conflicto(s)")
+        print(f"[ERROR] La gramatica no es LL(1): {len(conflicts)} conflictos")
         for c in conflicts: print(f"  {c}")
         sys.exit(1)
     print("Gramatica LL(1) verificada")
@@ -115,6 +104,7 @@ def run_ll1(grammar: Grammar, tokens: list, applied: set) -> None:
     print(report_first_follow(grammar))
     print_ll1_table(grammar)
 
+    # Parse con la gramatica ya corregida
     try:
         parser = LL1Parser(grammar, tokens)
         parser.parse()
@@ -123,6 +113,10 @@ def run_ll1(grammar: Grammar, tokens: list, applied: set) -> None:
 
     if parser.recovery_log:
         print(parser.recovery_report())
+
+    # Arbol final + confirmar que la gramatica corregida no tiene ambiguedad
+    _, reporte, _ = full_chain_analysis(grammar, tokens, parser.parse_tree, "LL(1)", fix=True)
+    print(reporte)
     print("Cadena aceptada (LL(1))")
 
 
@@ -134,23 +128,28 @@ def run_slr1(grammar: Grammar, tokens: list) -> None:
 
     table, _, _ = build_slr1_table(grammar)
     print(table.report())
-    if table.has_conflicts():
-        print(f"[ADVERTENCIA] {len(table.conflicts)} conflicto(s) SLR(1):")
-        for c in table.conflicts: print(str(c))
 
     table.print_table(
         terminals=sorted(grammar.terminals | {"$"}),
         nonterminals=sorted(grammar.nonterminals)
     )
 
+    # --- Parse ---
     try:
         parser = SLR1Parser(grammar, tokens)
         parser.parse()
     except SLR1ParseError as e:
+        _, reporte, _ = full_chain_analysis(grammar, tokens, None, "SLR(1)", fix=False)
+        print(reporte)
         print(f"[ERROR SINTACTICO] {e}"); sys.exit(1)
 
     if parser.recovery_log:
         print(parser.recovery_report())
+
+    # Arbol de la cadena + verificacion de ambiguedad, sin correccion automatica para LR
+    _, reporte, _ = full_chain_analysis(grammar, tokens, parser.parse_tree, "SLR(1)", fix=False)
+    print(reporte)
+
     print("Cadena aceptada (SLR(1))")
 
 
@@ -162,23 +161,28 @@ def run_lalr(grammar: Grammar, tokens: list) -> None:
     print(report_gotos(states))
 
     print(table.report())
-    if table.has_conflicts():
-        print(f"[ADVERTENCIA] {len(table.conflicts)} conflicto(s) LALR:")
-        for c in table.conflicts: print(str(c))
 
     table.print_table(
         terminals=sorted(grammar.terminals | {"$"}),
         nonterminals=sorted(grammar.nonterminals)
     )
 
+    # --- Parse ---
     try:
         parser = LALRParser(grammar, tokens)
         parser.parse()
     except LALRParseError as e:
+        _, reporte, _ = full_chain_analysis(grammar, tokens, None, "LALR", fix=False)
+        print(reporte)
         print(f"[ERROR SINTACTICO] {e}"); sys.exit(1)
 
     if parser.recovery_log:
         print(parser.recovery_report())
+
+    # Arbol de la cadena + verificacion de ambiguedad, sin correccion automatica para LR
+    _, reporte, _ = full_chain_analysis(grammar, tokens, parser.parse_tree, "LALR", fix=False)
+    print(reporte)
+
     print("Cadena aceptada (LALR)")
 
 
@@ -194,24 +198,26 @@ def main():
     txt_group.add_argument("--text", "-t")
     txt_group.add_argument("--file", "-f")
 
-    ap.add_argument("--parser",     "-m", choices=["ll1", "slr1", "lalr"], default="slr1")
-    ap.add_argument("--afd-to-cfg", action="store_true")
+    ap.add_argument("--parser", "-m", choices=["ll1", "slr1", "lalr"], default="slr1")
     args = ap.parse_args()
 
     lexer_path = generate_lexer_from_yal(args.yal) if args.yal else args.lexer
     lexer_mod  = load_lexer(lexer_path)
 
     grammar, ignored_tokens = load_grammar(args.yapar)
-    grammar, applied        = preprocess(grammar)
 
-    source     = args.text if args.text else open(args.file, encoding="utf-8").read()
+    if args.text:
+        source = args.text
+    else:
+        with open(args.file, encoding="utf-8") as fh:
+            source = fh.read()
     raw_tokens = tokenize_source(source, lexer_mod)
     skip       = {"WS", "WHITESPACE", "NEWLINE"} | ignored_tokens
     tokens     = [tok for tok in raw_tokens if tok[0] not in skip]
     print(f"Tokens reconocidos: {len(tokens)}")
 
     if args.parser == "ll1":
-        run_ll1(grammar, tokens, applied)
+        run_ll1(grammar, tokens)
     elif args.parser == "slr1":
         run_slr1(grammar, tokens)
     elif args.parser == "lalr":

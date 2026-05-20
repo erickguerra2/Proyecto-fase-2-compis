@@ -32,7 +32,7 @@ def compute_first(grammar: Grammar) -> Dict[str, Set[str]]:
                     all_nullable = True
                     for sym in prod:
                         sym_first = first.get(sym, {sym})
-                        # agregar FIRST(sym) - {epsilon}
+                        # agregar FIRST de sym sin epsilon
                         first[nt] |= (sym_first - {EPSILON})
                         if EPSILON not in sym_first:
                             all_nullable = False
@@ -94,21 +94,6 @@ def compute_follow(grammar: Grammar,
 
     return follow
 
-
-def print_first_follow(grammar: Grammar) -> None:
-    """Imprime los conjuntos FIRST y FOLLOW formateados."""
-    first  = compute_first(grammar)
-    follow = compute_follow(grammar, first)
-
-    print(f"\n{'='*64}")
-    print("  Conjuntos FIRST y FOLLOW")
-    print(f"{'='*64}")
-    print(f"  {'NT':<24} {'FIRST':<30} FOLLOW")
-    print("  " + "-"*62)
-    for nt in sorted(grammar.nonterminals):
-        f1 = ", ".join(sorted(first.get(nt, set())))
-        f2 = ", ".join(sorted(follow.get(nt, set())))
-        print(f"  {nt:<24} {f1:<30} {f2}")
 
 
 def report_first_follow(grammar: Grammar) -> str:

@@ -15,7 +15,7 @@ class Grammar:
                   rules: Dict[str, List[List[str]]]) -> "Grammar":
         g = cls()
         g.start = start
-        g.productions = {k: list(v) for k, v in rules.items()}
+        g.productions = {k: [list(p) for p in v] for k, v in rules.items()}
         g.nonterminals = set(rules.keys())
         for prods in g.productions.values():
             for prod in prods:
@@ -28,6 +28,6 @@ class Grammar:
         lines = [f"Start: {self.start}"]
         for nt, prods in self.productions.items():
             for p in prods:
-                body = " ".join(p) if p else "ε"
+                body = " ".join(p) if p else "e"
                 lines.append(f"  {nt} -> {body}")
         return "\n".join(lines)

@@ -74,7 +74,7 @@ def eliminate_left_recursion(grammar: Grammar) -> Grammar:
     all_nts = set(new_rules)
 
     for i, ai in enumerate(ordered):
-        # Sustituir Aj (j < i) en producciones de Ai
+        # Sustituir Aj donde j < i en producciones de Ai
         for aj in ordered[:i]:
             expanded = []
             for prod in new_rules[ai]:
@@ -112,16 +112,17 @@ def report_left_recursion(grammar: Grammar) -> str:
             prod and prod[0] == nt
             for prod in grammar.productions.get(nt, [])
         ):
-            indirect.append(f"  {nt} (via: {', '.join(reachable[nt] & {nt})})")
+            via = reachable[nt] - {nt}
+            indirect.append(f"  {nt} via {', '.join(sorted(via))}")
 
     if not direct and not indirect:
         return "Recursividad izquierda: ninguna"
 
     lines = []
     if direct:
-        lines.append(f"Recursividad izquierda directa ({len(direct)}):")
+        lines.append(f"Recursividad izquierda directa: {len(direct)}")
         lines.extend(direct)
     if indirect:
-        lines.append(f"Recursividad izquierda indirecta ({len(indirect)}):")
+        lines.append(f"Recursividad izquierda indirecta: {len(indirect)}")
         lines.extend(indirect)
     return "\n".join(lines)

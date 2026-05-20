@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple, Optional
 from src.cfg_grammar  import Grammar
 from src.first_follow import compute_first, compute_follow, first_of_string, EPSILON, EOF_SYM
 from src.error_recovery import panic_mode_recovery, phrase_level_recovery, SyntaxError_, format_errors
+from src.parse_tree import ParseTree
 
 LLTable = Dict[Tuple[str, str], List[List[str]]]
 
@@ -46,11 +47,6 @@ def build_ll1_table(grammar: Grammar) -> Tuple[LLTable, List[LL1Conflict]]:
     return table, conflicts
 
 
-def is_ll1(grammar: Grammar) -> bool:
-    _, conflicts = build_ll1_table(grammar)
-    return len(conflicts) == 0
-
-
 def print_ll1_table(grammar: Grammar) -> None:
     table, conflicts = build_ll1_table(grammar)
     all_terms = sorted(set(t for (_, t) in table))
@@ -59,7 +55,7 @@ def print_ll1_table(grammar: Grammar) -> None:
 
     print(f"\n{'='*64}")
     print(f"  Tabla de Parsing LL(1)")
-    print(f"  {'Sin conflictos - ES LL(1)' if not conflicts else str(len(conflicts)) + ' conflicto(s) - NO es LL(1)'}")
+    print(f"  {'Sin conflictos - ES LL(1)' if not conflicts else str(len(conflicts)) + ' conflictos - NO es LL(1)'}")
     print(f"{'='*64}")
 
     hdr = f"  {'NT':<20} | " + " | ".join(f"{t:<{col_w}}" for t in all_terms)
@@ -84,16 +80,6 @@ def print_ll1_table(grammar: Grammar) -> None:
         print(f"\n  Conflictos:")
         for c in conflicts: print(str(c))
 
-def report_ll1(grammar: Grammar) -> str:
-    _, conflicts = build_ll1_table(grammar)
-    if not conflicts:
-        return "LL(1): la gramatica ES LL(1), sin conflictos."
-    lines = [f"LL(1): la gramatica NO es LL(1) — {len(conflicts)} conflicto(s):"]
-    for c in conflicts:
-        lines.append(str(c))
-    return "\n".join(lines)
-
-
 class LL1ParseError(Exception):
     pass
 
@@ -110,15 +96,17 @@ class LL1Parser:
         self.first     = compute_first(grammar)
         self.follow    = compute_follow(grammar, self.first)
         self.recovery_log: List[SyntaxError_] = []
+        self.parse_tree = None
 
     def is_ll1(self) -> bool:
         return len(self.conflicts) == 0
 
     def parse(self) -> bool:
-        """Ejecuta el parsing predictivo con pila explicita. Retorna True si acepta."""
+        """Ejecuta el parsing predictivo con pila explicita. Retorna True si acepta.
+        Tras aceptar, construye self.parse_tree con _build_parse_tree()."""
         if not self.is_ll1():
             raise LL1ParseError(
-                f"La gramatica tiene {len(self.conflicts)} conflicto(s) LL(1).\n"
+                f"La gramatica tiene {len(self.conflicts)} conflictos LL(1).\n"
                 + "\n".join(str(c) for c in self.conflicts[:3])
             )
 
@@ -133,7 +121,7 @@ class LL1Parser:
             tok      = input_tokens[pos]
             cur_type, cur_lex = tok[0], tok[1]
             cur_line, cur_col = tok[2], tok[3]
-            pos_str = f" [línea {cur_line}, col {cur_col}]" if cur_line is not None else ""
+            pos_str = f" [linea {cur_line}, col {cur_col}]" if cur_line is not None else ""
 
             if top_sym == EOF_SYM:
                 if cur_type == EOF_SYM:
@@ -154,9 +142,9 @@ class LL1Parser:
                         self.recovery_log.append(err)
                         input_tokens = new_tokens
                         if len(new_tokens) > before:
-                            pass  # token insertado en pos: top_sym sigue en pila, prox iter lo consume
+                            pass
                         else:
-                            stack.pop()  # token eliminado o sin cambio: descarta terminal esperado
+                            stack.pop()
                     else:
                         stack.pop()
                 continue
@@ -166,11 +154,9 @@ class LL1Parser:
 
             if not prod_list:
                 follow_set = self.follow.get(top_sym, set())
-
                 if cur_type in follow_set or cur_lex in follow_set:
                     err = SyntaxError_(
-                        pos=pos,
-                        token=tok,
+                        pos=pos, token=tok,
                         expected=f"produccion para {top_sym}",
                         recovery=f"phrase-level: epsilon ('{cur_type}' en FOLLOW de {top_sym})"
                     )
@@ -186,14 +172,46 @@ class LL1Parser:
 
             production = prod_list[0]
             stack.pop()
-
             if not production:
                 continue
-
             for sym in reversed(production):
                 stack.append(sym)
 
+        self.parse_tree = self._build_parse_tree(input_tokens)
         return True
+
+    def _build_parse_tree(self, input_tokens: list) -> ParseTree:
+        """Reconstruye el arbol de derivacion usando la tabla LL(1) (top-down recursivo)."""
+        pos = [0]
+
+        def expand(symbol: str) -> ParseTree:
+            if symbol == EOF_SYM:
+                return ParseTree(symbol)
+
+            # Terminal: consumir el token correspondiente
+            if symbol in self.grammar.terminals or symbol not in self.grammar.productions:
+                tok = input_tokens[pos[0]] if pos[0] < len(input_tokens) else (EOF_SYM, EOF_SYM, None, None)
+                if self._match(symbol, tok[0], tok[1]):
+                    label = tok[1] if tok[1] and tok[1] != tok[0] else symbol
+                    pos[0] += 1
+                    return ParseTree(label)
+                return ParseTree(symbol)
+
+            # No-terminal: buscar produccion en tabla
+            tok = input_tokens[pos[0]] if pos[0] < len(input_tokens) else (EOF_SYM, EOF_SYM, None, None)
+            prod_list = self.table.get((symbol, tok[0])) or self.table.get((symbol, tok[1]))
+
+            if not prod_list:
+                return ParseTree(symbol, [ParseTree("e")])
+
+            prod = prod_list[0]
+            if not prod:
+                return ParseTree(symbol, [ParseTree("e")])
+
+            children = [expand(s) for s in prod]
+            return ParseTree(symbol, children)
+
+        return expand(self.grammar.start)
 
     def recovery_report(self) -> str:
         if not self.recovery_log:

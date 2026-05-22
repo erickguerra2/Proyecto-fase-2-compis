@@ -1,0 +1,32 @@
+%token ID NUM PLUS MINUS LPAREN RPAREN SEMI
+
+IGNORE WS
+IGNORE NEWLINE
+
+%%
+
+program:
+    stmt_list
+    ;
+
+stmt_list:
+    stmt_list stmt
+    | stmt
+    ;
+
+stmt:
+    expr SEMI
+    ;
+
+expr:
+    expr PLUS term
+    | expr MINUS term
+    | term
+    | term
+    ;
+
+term:
+    LPAREN expr RPAREN
+    | ID
+    | NUM
+    ;

@@ -1,0 +1,118 @@
+%token CLASS DEF RETURN ID NUM
+%token PLUS MINUS ASSIGN COMMA SEMI
+%token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
+
+IGNORE WS
+IGNORE NEWLINE
+
+%%
+
+program:
+    decl_list
+    ;
+
+decl_list:
+    decl decl_list_rest
+    ;
+
+decl_list_rest:
+    decl decl_list_rest
+    |
+    ;
+
+decl:
+    class_decl
+    | func_decl
+    ;
+
+class_decl:
+    CLASS ID LBRACE func_list RBRACE
+    ;
+
+func_list:
+    func_decl func_list_rest
+    ;
+
+func_list_rest:
+    func_decl func_list_rest
+    |
+    ;
+
+func_decl:
+    DEF ID LPAREN params RPAREN LBRACE stmt_list RBRACE
+    ;
+
+params:
+    ID params_tail
+    |
+    ;
+
+params_tail:
+    COMMA params
+    |
+    ;
+
+stmt_list:
+    stmt stmt_list_rest
+    ;
+
+stmt_list_rest:
+    stmt stmt_list_rest
+    |
+    ;
+
+stmt:
+    ID stmt_tail
+    | RETURN expr SEMI
+    ;
+
+stmt_tail:
+    ASSIGN expr SEMI
+    | LPAREN args RPAREN SEMI
+    ;
+
+expr:
+    term expr_rest
+    ;
+
+expr_rest:
+    PLUS term expr_rest
+    | MINUS term expr_rest
+    |
+    ;
+
+term:
+    ID term_tail
+    | list_expr
+    | NUM
+    | LPAREN expr RPAREN
+    ;
+
+term_tail:
+    LPAREN args RPAREN
+    |
+    ;
+
+args:
+    expr args_tail
+    |
+    ;
+
+args_tail:
+    COMMA args
+    |
+    ;
+
+list_expr:
+    LBRACKET list_items RBRACKET
+    ;
+
+list_items:
+    expr list_items_tail
+    |
+    ;
+
+list_items_tail:
+    COMMA list_items
+    |
+    ;

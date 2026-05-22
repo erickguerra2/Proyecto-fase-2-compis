@@ -1,0 +1,86 @@
+%token CLASS DEF RETURN ID NUM
+%token PLUS MINUS ASSIGN COMMA SEMI
+%token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
+
+IGNORE WS
+IGNORE NEWLINE
+
+%%
+
+program:
+    decl_list
+    ;
+
+decl_list:
+    decl_list decl
+    | decl
+    ;
+
+decl:
+    class_decl
+    | func_decl
+    ;
+
+class_decl:
+    CLASS ID LBRACE func_list RBRACE
+    ;
+
+func_list:
+    func_list func_decl
+    | func_decl
+    ;
+
+func_decl:
+    DEF ID LPAREN params RPAREN LBRACE stmt_list RBRACE
+    ;
+
+params:
+    params COMMA ID
+    | ID
+    |
+    ;
+
+stmt_list:
+    stmt_list stmt
+    | stmt
+    ;
+
+stmt:
+    ID ASSIGN expr SEMI
+    | RETURN expr SEMI
+    | call SEMI
+    ;
+
+expr:
+    expr PLUS term
+    | expr MINUS term
+    | term
+    ;
+
+term:
+    call
+    | list_expr
+    | ID
+    | NUM
+    | LPAREN expr RPAREN
+    ;
+
+call:
+    ID LPAREN args RPAREN
+    ;
+
+args:
+    args COMMA expr
+    | expr
+    |
+    ;
+
+list_expr:
+    LBRACKET list_items RBRACKET
+    ;
+
+list_items:
+    list_items COMMA expr
+    | expr
+    |
+    ;

@@ -9,7 +9,7 @@ from src.cfg_grammar    import Grammar
 from src.yapar_parser   import parse_yapar, YAParError
 from src.error_recovery import report_fix_production_issues
 from src.first_follow   import report_first_follow
-from src.ambiguity      import detect_ambiguity, full_chain_analysis
+from src.ambiguity      import detect_ambiguity, full_chain_analysis, fix_ambiguity
 
 from src.lr.lr0   import build_lr0, report_lr0, report_augmented_grammar, report_gotos
 from src.lr.lr_table import LRTable
@@ -154,11 +154,15 @@ def run_pipeline(yal_path: str, yapar_path: str, source: str,
     tokens = [t for t in tokens_raw if t[0] not in skip]
     res['tokens'] = tokens
 
-    # 4. Preprocesar gramatica
-    try:
-        grammar, _, _ = report_fix_production_issues(grammar)
-    except TypeError:
-        grammar, _ = report_fix_production_issues(grammar)
+    # Detectar ambiguedad en gramatica original antes del preprocesado
+    res['ambiguity_warnings'] = detect_ambiguity(grammar)
+
+    # 4. Preprocesar gramatica — SLR1 y LALR solamente, LL1 lo maneja internamente
+    if parser_mode != "ll1":
+        try:
+            grammar, _, _ = report_fix_production_issues(grammar)
+        except TypeError:
+            grammar, _ = report_fix_production_issues(grammar)
 
     # 5. Info de la gramatica
     lines = []
@@ -169,9 +173,6 @@ def run_pipeline(yal_path: str, yapar_path: str, source: str,
     res['grammar_text']       = "\n".join(lines)
     res['productions_count']  = sum(len(v) for v in grammar.productions.values())
     res['nonterminals_count'] = len(grammar.nonterminals)
-
-    # 6. Deteccion de ambiguedad (siempre)
-    res['ambiguity_warnings'] = detect_ambiguity(grammar)
 
     # 7. Parser especifico
     if parser_mode == "ll1":
@@ -189,6 +190,16 @@ def run_pipeline(yal_path: str, yapar_path: str, source: str,
 # ---------------------------------------------------------------------------
 
 def _run_ll1(grammar: Grammar, tokens: list, res: dict):
+    n_orig = len(res.get('ambiguity_warnings', []))
+
+    # 1. Pre-analisis: mostrar los dos arboles de ambiguedad y corregir gramatica
+    if n_orig > 0:
+        grammar, pre_text, _ = full_chain_analysis(
+            grammar, tokens, None, "LL(1)", fix=True, pre_parse=True)
+    else:
+        pre_text = ""
+
+    # 2. Transformaciones especificas LL1 sobre gramatica ya corregida
     if has_left_recursion(grammar):
         grammar = eliminate_left_recursion(grammar)
     if needs_factorization(grammar):
@@ -202,6 +213,7 @@ def _run_ll1(grammar: Grammar, tokens: list, res: dict):
     res['conflicts'] = conflicts
     if conflicts:
         res['error'] = f"La gramatica no es LL(1): {len(conflicts)} conflicto(s)"
+        res['ambiguity_text'] = pre_text
         return
 
     res['table_text'] = _capture(print_ll1_table, grammar)
@@ -215,9 +227,11 @@ def _run_ll1(grammar: Grammar, tokens: list, res: dict):
     except LL1ParseError as e:
         res['error'] = str(e)
 
-    _, amb, _ = full_chain_analysis(
+    # 3. Post-analisis: arbol final con gramatica corregida
+    _, post_text, _ = full_chain_analysis(
         grammar, tokens, res['parse_tree'], "LL(1)", fix=False)
-    res['ambiguity_text'] = amb
+
+    res['ambiguity_text'] = (pre_text + "\n\n---\n\n" + post_text) if pre_text else post_text
 
 
 def _run_slr1(grammar: Grammar, tokens: list, res: dict):

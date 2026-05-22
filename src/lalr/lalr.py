@@ -255,3 +255,24 @@ class LALRParser:
         if not self.recovery_log:
             return "  Sin acciones de recuperacion LALR."
         return format_errors(self.recovery_log)
+
+
+def report_lalr_states(states: list) -> str:
+    """Reporte de estados LALR agrupando lookaheads por core de item."""
+    lines = [f"Automata LALR: {len(states)} estado(s)"]
+    for state in states:
+        lines.append(f"Estado {state.id}:")
+        core_to_las: dict = {}
+        for item in state.items:
+            core = (item.nt, item.prod, item.dot)
+            core_to_las.setdefault(core, set()).add(item.lookahead)
+        for (nt, prod, dot), las in sorted(core_to_las.items(),
+                                           key=lambda x: (x[0][0], x[0][2])):
+            syms = list(prod)
+            syms.insert(dot, "•")
+            body = " ".join(syms) if syms else "•"
+            la_str = ", ".join(sorted(las))
+            lines.append(f"  [{nt} -> {body}, {{{la_str}}}]")
+        for sym, target in sorted(state.transitions.items()):
+            lines.append(f"    GOTO({sym}) -> Estado {target}")
+    return "\n".join(lines)

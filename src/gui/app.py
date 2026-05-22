@@ -158,6 +158,11 @@ class App(tk.Tk):
                   background=[("selected", ACCENT)],
                   foreground=[("selected", BG)])
 
+        # Banner de resultado (aceptado / rechazado)
+        self.result_banner = tk.Label(self, text="", font=("Segoe UI", 12, "bold"),
+                                      bg=BG, pady=4)
+        self.result_banner.pack(fill="x", padx=10)
+
         self.nb = ttk.Notebook(self)
         self.nb.pack(fill="both", expand=True, padx=10, pady=(0, 4))
 
@@ -165,6 +170,7 @@ class App(tk.Tk):
         self.tab_grammar = self._add_tab("  Gramatica  ")
         self.tab_states  = self._add_tab("  Estados  ")
         self.tab_table   = self._add_tab("  Tabla  ")
+        self.tab_sim     = self._add_tab("  Simulacion  ")
         self.tab_tree    = self._add_tab("  Arbol  ")
 
     def _add_tab(self, title: str) -> tk.Text:
@@ -327,6 +333,33 @@ class App(tk.Tk):
             self.tab_table.insert("end", tbl)
         self.tab_table.config(state="disabled")
 
+        # ── Tab Simulacion ──
+        _write(self.tab_sim, "")
+        self.tab_sim.config(state="normal")
+        trace = res.get('trace', [])
+        if trace:
+            pw  = max(len(str(len(trace))), 4)
+            stw = max((len(s) for s, _, _, _ in trace), default=5)
+            smw = max((len(m) for _, m, _, _ in trace), default=7)
+            iw  = max((len(i) for _, _, i, _ in trace), default=7)
+            stw = max(stw, 5)
+            smw = max(smw, 7)
+            iw  = max(iw,  7)
+            hdr = (f"{'Paso':<{pw+2}}  {'Pila':<{stw+2}}  "
+                   f"{'Simbolo':<{smw+2}}  {'Entrada':<{iw+2}}  Accion\n")
+            hdr += "─" * (pw + stw + smw + iw + 40) + "\n"
+            self.tab_sim.insert("end", hdr, "accent")
+            for i, (pila, simbolo, entrada, accion) in enumerate(trace, 1):
+                is_accept = "acc" in accion.lower()
+                is_error  = "error" in accion.lower()
+                tag  = "ok" if is_accept else ("error" if is_error else "")
+                line = (f"{i:<{pw+2}}  {pila:<{stw+2}}  "
+                        f"{simbolo:<{smw+2}}  {entrada:<{iw+2}}  {accion}\n")
+                self.tab_sim.insert("end", line, tag)
+        else:
+            self.tab_sim.insert("end", "(Simulacion no disponible para LL(1) en esta version)\n", "warn")
+        self.tab_sim.config(state="disabled")
+
         # ── Tab Arbol ──
         _write(self.tab_tree, "")
         self.tab_tree.config(state="normal")
@@ -354,12 +387,26 @@ class App(tk.Tk):
             )
         self.tab_tree.config(state="disabled")
 
+        # ── Banner de resultado ──
+        if error:
+            self.result_banner.config(
+                text=f"✗  CADENA RECHAZADA",
+                bg=ERROR_C, fg=BG)
+        elif res.get('accepted'):
+            mode = self.parser_var.get().upper()
+            extra = "  ⚠ gramatica ambigua" if warnings else ""
+            self.result_banner.config(
+                text=f"✓  CADENA ACEPTADA  ({mode}){extra}",
+                bg=OK_C, fg=BG)
+        else:
+            self.result_banner.config(text="", bg=BG)
+
         # ── Status bar ──
         if error:
             self.status_var.set(f"✗  {error[:120]}")
-            # Mostrar error en tab activo tambien
             for tab in (self.tab_tokens, self.tab_grammar,
-                        self.tab_states,  self.tab_table, self.tab_tree):
+                        self.tab_states,  self.tab_table,
+                        self.tab_sim,     self.tab_tree):
                 tab.config(state="normal")
                 tab.insert("1.0", f"[ERROR] {error}\n\n", "error")
                 tab.config(state="disabled")
@@ -370,6 +417,6 @@ class App(tk.Tk):
                 f"✓  Cadena aceptada ({mode})  |  {n} token(s)"
                 + ("  |  ⚠ gramatica ambigua" if warnings else "")
             )
-            self.nb.select(4)   # ir directo al arbol
+            self.nb.select(4)   # ir al tab Simulacion
         else:
             self.status_var.set("✗  Cadena rechazada o error en pipeline.")

@@ -11,8 +11,9 @@ from src.error_recovery import report_fix_production_issues
 from src.first_follow   import report_first_follow
 from src.ambiguity      import detect_ambiguity, full_chain_analysis, fix_ambiguity
 
-from src.lr.lr0   import build_lr0, report_lr0, report_augmented_grammar, report_gotos
-from src.lr.lr_table import LRTable
+from src.lr.lr0      import build_lr0, report_lr0, report_augmented_grammar, report_gotos
+from src.lr.lr_table import LRTable, SHIFT, REDUCE, ACCEPT
+from src.first_follow import EOF_SYM
 
 from src.slr1.slr1  import build_slr1_table, SLR1Parser, SLR1ParseError
 from src.lalr.lalr  import build_lalr_table, LALRParser, LALRParseError, report_lalr_states
@@ -82,6 +83,70 @@ def _table_str(table, terminals, nonterminals) -> str:
     return "\n".join(lines)
 
 
+def _build_lr_trace(table, tokens: list) -> list:
+    """Simula el parsing LR. Retorna pasos (pila_estados, pila_simbolos, entrada, accion)."""
+    input_tokens = tokens + [(EOF_SYM, EOF_SYM, None, None)]
+    pos       = 0
+    stack     = [0]
+    sym_stack = []
+    steps     = []
+
+    def tok_label(t):
+        return t[1] if t[1] and t[1] != t[0] else t[0]
+
+    while True:
+        state             = stack[-1]
+        tok               = input_tokens[pos]
+        cur_type, cur_lex = tok[0], tok[1]
+
+        action = (table.get_action(state, cur_type) or
+                  table.get_action(state, cur_lex))
+
+        # Pila de estados: numeros concatenados con espacio (ej: "0 2 6 4")
+        pila_str = " ".join(str(s) for s in stack)
+
+        # Pila de simbolos: acumulada (ej: "L = * id")
+        simb_str = " ".join(sym_stack) if sym_stack else "-"
+
+        # Entrada restante
+        input_str = " ".join(tok_label(t) for t in input_tokens[pos:])
+
+        # Accion formateada como en la teoria
+        if action is None:
+            accion_str = f"ERROR: token inesperado '{cur_lex}'"
+        elif action.kind == SHIFT:
+            accion_str = f"S{action.state}"
+        elif action.kind == REDUCE:
+            body = " ".join(action.prod) if action.prod else "ε"
+            accion_str = f"r: {action.nt} -> {body}"
+        else:
+            accion_str = "accept"
+
+        steps.append((pila_str, simb_str, input_str, accion_str))
+
+        if action is None or action.kind == ACCEPT:
+            break
+
+        if action.kind == SHIFT:
+            sym_stack.append(tok_label(tok))
+            stack.append(action.state)
+            pos += 1
+
+        elif action.kind == REDUCE:
+            n = len(action.prod)
+            for _ in range(n):
+                stack.pop()
+                if sym_stack:
+                    sym_stack.pop()
+            goto = table.get_goto(stack[-1], action.nt)
+            if goto is None:
+                break
+            sym_stack.append(action.nt)
+            stack.append(goto)
+
+    return steps
+
+
 def _generate_lexer(yal_path: str):
     """Genera lexer desde .yal. Retorna (path, error)."""
     base = os.path.basename(yal_path)
@@ -124,7 +189,7 @@ def run_pipeline(yal_path: str, yapar_path: str, source: str,
         first_follow="", states_text="", gotos_text="",
         table_text="", conflicts=[], ambiguity_warnings=[],
         ambiguity_text="", parse_tree=None,
-        recovery_log=[], accepted=False,
+        recovery_log=[], accepted=False, trace=[],
     )
 
     # 1. Lexer
@@ -245,6 +310,7 @@ def _run_slr1(grammar: Grammar, tokens: list, res: dict):
     res['table_text'] = _table_str(table,
                                    grammar.terminals | {"$"},
                                    grammar.nonterminals)
+    res['trace'] = _build_lr_trace(table, tokens)
 
     try:
         parser = SLR1Parser(grammar, tokens)
@@ -271,6 +337,7 @@ def _run_lalr(grammar: Grammar, tokens: list, res: dict):
     res['table_text']  = _table_str(table,
                                     grammar.terminals | {"$"},
                                     grammar.nonterminals)
+    res['trace'] = _build_lr_trace(table, tokens)
 
     try:
         parser = LALRParser(grammar, tokens)

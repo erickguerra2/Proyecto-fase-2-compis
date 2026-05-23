@@ -246,6 +246,18 @@ def full_chain_analysis(
         lines.append("  Los arboles anteriores persisten: la gramatica sigue siendo ambigua.")
         return grammar_fixed, "\n".join(lines), applied
 
+    from src.ll1.ll1_table import build_ll1_table
+    _, ll1_conflicts = build_ll1_table(grammar_fixed)
+    if ll1_conflicts:
+        lines.append(f"  ADVERTENCIA: la transformacion automatica no es suficiente.")
+        lines.append(f"  La gramatica transformada tiene {len(ll1_conflicts)} conflicto(s) LL(1).")
+        lines.append(f"  El patron 'E -> E op E' requiere estratificacion manual por precedencia.")
+        lines.append(f"  Gramatica transformada (con conflictos pendientes):")
+        for nt, prods in grammar_fixed.productions.items():
+            alts = " | ".join(" ".join(p) if p else "epsilon" for p in prods)
+            lines.append(f"    {nt} -> {alts}")
+        return grammar_fixed, "\n".join(lines), applied
+
     lines.append("  Gramatica sin indicadores de ambiguedad tras las correcciones.")
     lines.append("  La cadena produce exactamente un arbol de derivacion.")
     return grammar_fixed, "\n".join(lines), applied

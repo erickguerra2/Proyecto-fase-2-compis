@@ -1,0 +1,18 @@
+def square(n) {
+return n * n ;
+}
+def cube(n) {
+sq = square(n) ;
+return sq * n ;
+}
+def poly(a, b, c, x) {
+a2 = a * square(x) ;
+b1 = b * x ;
+result = a2 + b1 + c ;
+return result ;
+}
+def main() {
+p = poly(2, 3, 1, 5) ;
+q = poly(cube(2), square(3), poly(1, 1, 0, 2), 4) ;
+return p + q * 2 - 1 ;
+}

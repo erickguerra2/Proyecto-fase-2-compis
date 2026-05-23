@@ -1,0 +1,36 @@
+%token ID NUM PLUS MINUS TIMES ASSIGN SEMI LPAREN RPAREN
+
+IGNORE WS
+IGNORE NEWLINE
+
+%%
+
+program:
+    stmtlist
+    ;
+
+stmtlist:
+    stmtlist stmt
+    | stmt
+    ;
+
+stmt:
+    ID ASSIGN expr SEMI
+    ;
+
+expr:
+    expr PLUS term
+    | expr MINUS term
+    | term
+    ;
+
+term:
+    term TIMES factor
+    | factor
+    ;
+
+factor:
+    LPAREN expr RPAREN
+    | ID
+    | NUM
+    ;

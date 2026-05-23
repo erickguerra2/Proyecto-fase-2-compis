@@ -1,0 +1,17 @@
+class Matrix {
+def scale(m, factor) {
+result = m * factor ;
+return result ;
+}
+def dot(a, b, c, d) {
+p = a * b ;
+q = c * d ;
+return p + q ;
+}
+def transform(x, y, z) {
+a = x * y + z ;
+b = x + y * z ;
+c = a * b - x ;
+return c ;
+}
+}

@@ -1,4 +1,4 @@
-%token ID NUM PLUS MINUS LPAREN RPAREN SEMI
+%token ID NUM PLUS MINUS TIMES LPAREN RPAREN SEMI
 
 IGNORE WS
 IGNORE NEWLINE
@@ -19,14 +19,10 @@ stmt:
     ;
 
 expr:
-    expr PLUS term
-    | expr MINUS term
-    | term
-    | term
-    ;
-
-term:
-    LPAREN expr RPAREN
+    expr PLUS expr
+    | expr MINUS expr
+    | expr TIMES expr
+    | LPAREN expr RPAREN
     | ID
     | NUM
     ;

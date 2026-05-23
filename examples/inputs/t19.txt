@@ -1,0 +1,14 @@
+def compute(a, b, c, d, e) {
+t1 = a * b + c * d ;
+t2 = t1 - b * c + a * d ;
+t3 = t2 * e - t1 + t2 * a ;
+t4 = t3 + compute(t1, t2, t3, a, b) ;
+return t4 * e + t3 - t2 * t1 ;
+}
+def main() {
+x = [1, 2, 3, 4, 5] ;
+r1 = compute(1, 2, 3, 4, 5) ;
+r2 = compute(r1, r1 + 1, r1 * 2, 10 - r1, r1 + r1) ;
+final = r1 * r2 + r1 - r2 * 2 + 100 ;
+return final ;
+}

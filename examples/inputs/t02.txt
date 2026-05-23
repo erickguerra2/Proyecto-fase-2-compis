@@ -1,0 +1,9 @@
+def factorial(n) {
+result = n - 1 ;
+return factorial(result) ;
+}
+def main() {
+a = factorial(5) ;
+b = a + factorial(3) ;
+return b ;
+}

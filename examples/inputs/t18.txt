@@ -1,0 +1,33 @@
+class Vector {
+def add(ax, ay, bx, by) {
+rx = ax + bx ;
+ry = ay + by ;
+return rx + ry ;
+}
+def scale(vx, vy, s) {
+rx = vx * s ;
+ry = vy * s ;
+return rx + ry ;
+}
+}
+class Physics {
+def kinetic(m, v) {
+v2 = v * v ;
+return m * v2 ;
+}
+def momentum(m, v) {
+return m * v ;
+}
+def energy(m, v, h) {
+k = kinetic(m, v) ;
+p = m * 10 * h ;
+return k + p ;
+}
+}
+def simulate() {
+mass = 5 ;
+vel = 3 ;
+height = 10 ;
+e = energy(mass, vel, height) ;
+return e ;
+}

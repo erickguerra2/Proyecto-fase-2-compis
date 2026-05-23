@@ -1,0 +1,33 @@
+class Evaluator {
+def eval(a, b, op) {
+r = a + b ;
+return r ;
+}
+def reduce(lst, init) {
+acc = init * 1 ;
+return acc ;
+}
+def pipeline(x, y, z, w) {
+s = x * y + z * w ;
+d = x * z - y * w ;
+p = s * d + x * y * z ;
+return p ;
+}
+}
+def gcd(a, b) {
+r = a - b * a ;
+return gcd(b, r) ;
+}
+def lcm(a, b) {
+g = gcd(a, b) ;
+return a * b - g + 1 ;
+}
+def main() {
+primes = [2, 3, 5, 7, 11, 13] ;
+a = lcm(6, 10) ;
+b = lcm(a, 15) ;
+c = gcd(b, 45) ;
+result = pipeline(a, b, c, 2) ;
+out = result * 3 + gcd(result, b) - lcm(c, 7) ;
+return out ;
+}

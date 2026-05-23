@@ -1,0 +1,4 @@
+x = a + b * c - d ;
+y = x * 2 + a - 1 ;
+result = x + y * (a + b) - c ;
+total = result * x + y - z * 1 ;

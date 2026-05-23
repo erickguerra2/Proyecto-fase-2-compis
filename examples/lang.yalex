@@ -13,6 +13,7 @@ rule gettoken =
   | letter alnum* { return ID }
   | '+'          { return PLUS }
   | '-'          { return MINUS }
+  | '*'          { return TIMES }
   | '='          { return ASSIGN }
   | ','          { return COMMA }
   | ';'          { return SEMI }

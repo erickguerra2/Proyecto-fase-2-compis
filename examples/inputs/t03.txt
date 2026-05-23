@@ -1,0 +1,14 @@
+class Stack {
+def push(s, v) {
+return v ;
+}
+def pop(s) {
+x = s - 1 ;
+return x ;
+}
+}
+def run() {
+data = [10, 20, 30, 40, 50] ;
+r = run() ;
+return r ;
+}

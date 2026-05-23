@@ -1,0 +1,9 @@
+class Geometry {
+def perimeter(a, b) {
+return a + b + a + b ;
+}
+def diagonal(x, y) {
+d = x + y ;
+return d ;
+}
+}

@@ -1,0 +1,15 @@
+def compose(f, g, x) {
+inner = g(x) ;
+outer = f(inner) ;
+return outer ;
+}
+def double(n) {
+return n + n ;
+}
+def inc(n) {
+return n + 1 ;
+}
+def main() {
+result = compose(double, inc, compose(inc, double, 3)) ;
+return result ;
+}

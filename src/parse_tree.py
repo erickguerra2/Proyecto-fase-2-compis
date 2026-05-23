@@ -45,86 +45,104 @@ def _tok_label(tok) -> str:
 
 
 def _find_op_positions(tokens: list, ops: list) -> List[int]:
-    """Posiciones (indices) donde aparece la secuencia de operadores en tokens."""
+    """Posiciones donde aparece la secuencia de operadores al nivel 0 (fuera de parentesis)."""
     n = len(ops)
     positions = []
-    for i in range(len(tokens) - n + 1):
-        if all(tokens[i + j][0] == ops[j] or tokens[i + j][1] == ops[j]
-               for j in range(n)):
+    depth = 0
+    i = 0
+    while i <= len(tokens) - n:
+        ttype = tokens[i][0]
+        tlex  = tokens[i][1] if len(tokens[i]) > 1 else ""
+        if ttype == "LPAREN" or tlex == "(":
+            depth += 1
+            i += 1
+            continue
+        if ttype == "RPAREN" or tlex == ")":
+            depth -= 1
+            i += 1
+            continue
+        if depth == 0 and all(
+            tokens[i + j][0] == ops[j] or tokens[i + j][1] == ops[j]
+            for j in range(n)
+        ):
             positions.append(i)
+        i += 1
     return positions
-
-
-def _split_by_ops(tokens: list, op_positions: List[int], op_len: int) -> List[list]:
-    """Divide tokens en segmentos separados por las posiciones de operador."""
-    segments, prev = [], 0
-    for pos in op_positions:
-        segments.append(tokens[prev:pos])
-        prev = pos + op_len
-    segments.append(tokens[prev:])
-    return segments
 
 
 # Construccion de arboles desde tokens REALES de la cadena de entrada
 
+def _collect_splits(rec_prods: list, toks: list) -> list:
+    """Posiciones de todos los operadores al nivel 0, para todas las producciones recursivas."""
+    splits = []
+    seen   = set()
+    for prod in rec_prods:
+        ops = prod[1:-1]
+        for pos in _find_op_positions(toks, ops):
+            if pos not in seen:
+                splits.append((pos, len(ops)))
+                seen.add(pos)
+    splits.sort(key=lambda x: x[0])
+    return splits
+
+
+def _build_assoc_tree(nt: str, rec_prods: list, toks: list, left_assoc: bool) -> 'ParseTree':
+    """Construye un arbol de la cadena con asociacion izquierda o derecha.
+
+    left_assoc=True  -> divide en el operador mas a la derecha -> (a op b) op c
+    left_assoc=False -> divide en el operador mas a la izquierda -> a op (b op c)
+    """
+    splits = _collect_splits(rec_prods, toks)
+    if not splits:
+        return _leaf_tree(nt, rec_prods, toks)
+
+    pos, olen = splits[-1] if left_assoc else splits[0]
+    left_toks  = toks[:pos]
+    op_nodes   = [ParseTree(_tok_label(toks[pos + j])) for j in range(olen)]
+    right_toks = toks[pos + olen:]
+
+    return ParseTree(nt, [
+        _build_assoc_tree(nt, rec_prods, left_toks,  left_assoc),
+        *op_nodes,
+        _build_assoc_tree(nt, rec_prods, right_toks, left_assoc),
+    ])
+
+
+def _leaf_tree(nt: str, rec_prods: list, toks: list) -> 'ParseTree':
+    """Nodo hoja: token unico, epsilon, o expresion entre parentesis."""
+    if not toks:
+        return ParseTree(nt, [ParseTree("e")])
+    is_lparen = lambda t: t[0] == "LPAREN" or (len(t) > 1 and t[1] == "(")
+    is_rparen = lambda t: t[0] == "RPAREN" or (len(t) > 1 and t[1] == ")")
+    if len(toks) >= 2 and is_lparen(toks[0]) and is_rparen(toks[-1]):
+        inner = _build_assoc_tree(nt, rec_prods, toks[1:-1], True)
+        return ParseTree(nt, [ParseTree("("), inner, ParseTree(")")])
+    return ParseTree(nt, [ParseTree(_tok_label(t)) for t in toks])
+
+
 def build_trees_from_tokens(
         grammar: Grammar, nt: str, tokens: list
 ) -> Tuple[Optional['ParseTree'], Optional['ParseTree']]:
-    """Para NT con patron E->E op E y los tokens reales del input,
-    construye el arbol de asociacion izquierda y el de derecha.
+    """Construye dos arboles de derivacion de la cadena real: asociacion izquierda y derecha.
 
-    tokens: lista de (tipo, lexema, linea, col) del input real.
-    Retorna (arbol_izquierda, arbol_derecha) o (None, None).
+    Usa todos los operadores de todas las producciones E->E op E para encontrar
+    puntos de division distintos. Retorna (arbol_izq, arbol_der) o (None, None).
     """
-    non_eps  = [p for p in grammar.productions.get(nt, []) if p]
-    rec_prod = next(
-        (p for p in non_eps if p[0] == nt and p[-1] == nt and len(p) > 1),
-        None
-    )
-    if not rec_prod:
+    non_eps   = [p for p in grammar.productions.get(nt, []) if p]
+    rec_prods = [p for p in non_eps if p[0] == nt and p[-1] == nt and len(p) > 1]
+    if not rec_prods:
         return None, None
 
-    ops         = rec_prod[1:-1]
-    real_tokens = [t for t in tokens if t[0] not in ("WS", "WHITESPACE", "NEWLINE", "$")]
+    real_tokens = [t for t in tokens
+                   if t[0] not in ("WS", "WHITESPACE", "NEWLINE", "$", "SEMI")
+                   and (len(t) < 2 or t[1] != ";")]
 
-    op_positions = _find_op_positions(real_tokens, ops)
-    if not op_positions:
+    splits = _collect_splits(rec_prods, real_tokens)
+    if len(splits) < 2 or splits[0][0] == splits[-1][0]:
         return None, None
 
-    segments = _split_by_ops(real_tokens, op_positions, len(ops))
-    if len(segments) < 2:
-        return None, None
-
-    def seg_tree(seg: list) -> 'ParseTree':
-        if not seg:
-            return ParseTree(nt, [ParseTree("e")])
-        # Si el segmento tiene sub-operadores, expandir recursivamente
-        sub_ops = _find_op_positions(seg, ops)
-        if sub_ops:
-            sub_segs = _split_by_ops(seg, sub_ops, len(ops))
-            acc = seg_tree(sub_segs[0])
-            for i, sop in enumerate(sub_ops):
-                op_nodes = [ParseTree(_tok_label(seg[sop + j])) for j in range(len(ops))]
-                acc = ParseTree(nt, [acc] + op_nodes + [seg_tree(sub_segs[i + 1])])
-            return acc
-        # Un solo token o varios terminales sin operador: hoja NT -> terminales
-        children = [ParseTree(_tok_label(t)) for t in seg]
-        return ParseTree(nt, children) if len(children) > 1 else ParseTree(nt, children)
-
-    def op_leaves(pos: int) -> List['ParseTree']:
-        return [ParseTree(_tok_label(real_tokens[pos + j])) for j in range(len(ops))]
-
-    # Asociacion izquierda: seg0 op seg1 op seg2 de izquierda a derecha
-    tree_left = seg_tree(segments[0])
-    for i, opos in enumerate(op_positions):
-        tree_left = ParseTree(nt, [tree_left] + op_leaves(opos) + [seg_tree(segments[i + 1])])
-
-    # Asociacion derecha: seg0 op seg1 op seg2 de derecha a izquierda
-    tree_right = seg_tree(segments[-1])
-    for i in range(len(op_positions) - 1, -1, -1):
-        opos = op_positions[i]
-        tree_right = ParseTree(nt, [seg_tree(segments[i])] + op_leaves(opos) + [tree_right])
-
+    tree_left  = _build_assoc_tree(nt, rec_prods, real_tokens, True)
+    tree_right = _build_assoc_tree(nt, rec_prods, real_tokens, False)
     return tree_left, tree_right
 
 

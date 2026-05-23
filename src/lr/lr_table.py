@@ -75,7 +75,12 @@ class LRTable:
     def set_action(self, state: int, symbol: str, action: LRAction) -> None:
         key = (state, symbol)
         if key in self.action and self.action[key] != action:
-            self.conflicts.append(LRConflict(state, symbol, self.action[key], action))
+            existing = self.action[key]
+            self.conflicts.append(LRConflict(state, symbol, existing, action))
+            # shift-reduce: prefer shift (standard "shift wins" resolution)
+            kinds = {existing.kind, action.kind}
+            if SHIFT in kinds and REDUCE in kinds and action.kind == SHIFT:
+                self.action[key] = action
         else:
             self.action[key] = action
 

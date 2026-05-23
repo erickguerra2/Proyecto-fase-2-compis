@@ -73,9 +73,6 @@ def load_grammar(yapar_path: str) -> tuple:
 
 
 def run_ll1(grammar: Grammar, tokens: list) -> None:
-    grammar, prod_report, _ = report_fix_production_issues(grammar)
-    print(prod_report)
-
     # Detectar ambiguedad con la gramatica original, mostrar arboles y corregir
     grammar, amb_report, _ = full_chain_analysis(grammar, tokens, None, "LL(1)", fix=True, pre_parse=True)
     print(amb_report)

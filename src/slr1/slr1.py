@@ -70,13 +70,6 @@ class SLR1Parser:
 
     def parse(self) -> bool:
         """Ejecuta el parsing SLR(1). Retorna True si acepta. Construye self.parse_tree."""
-        if not self.is_slr1():
-            conflicts = "\n".join(str(c) for c in self.table.conflicts[:3])
-            raise SLR1ParseError(
-                f"La gramatica tiene {len(self.table.conflicts)} conflictos SLR(1).\n"
-                + conflicts
-            )
-
         input_tokens = self.tokens + [(EOF_SYM, EOF_SYM, None, None)]
         pos        = 0
         stack      = [0]

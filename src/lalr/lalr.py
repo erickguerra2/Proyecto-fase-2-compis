@@ -197,13 +197,6 @@ class LALRParser:
 
     def parse(self) -> bool:
         """Ejecuta el parsing LALR. Retorna True si acepta. Construye self.parse_tree."""
-        if not self.is_lalr():
-            conflicts = "\n".join(str(c) for c in self.table.conflicts[:3])
-            raise LALRParseError(
-                f"La gramatica tiene {len(self.table.conflicts)} conflictos LALR.\n"
-                + conflicts
-            )
-
         input_tokens = self.tokens + [(EOF_SYM, EOF_SYM, None, None)]
         pos        = 0
         stack      = [0]

@@ -151,11 +151,13 @@ class App(tk.Tk):
         self.yal_var   = tk.StringVar()
         self.yapar_var = tk.StringVar()
 
-        for r, lbl, var, types in [
+        self._editor_map = {}   # var -> editor Text widget, se llena en _build_notebook
+
+        for r, lbl, var, types, ed_key in [
             (0, "YAL:", self.yal_var,
-             [("YAL files", "*.yal *.yalex"), ("All", "*.*")]),
+             [("YAL files", "*.yal *.yalex"), ("All", "*.*")], "yal"),
             (1, "YAPar:", self.yapar_var,
-             [("YAPar files", "*.yapar"), ("All", "*.*")]),
+             [("YAPar files", "*.yapar"), ("All", "*.*")], "yapar"),
         ]:
             tk.Label(ff, text=lbl, bg=BG2, fg=FG2, font=UI,
                      width=6, anchor="w").grid(row=r, column=0,
@@ -164,12 +166,19 @@ class App(tk.Tk):
                      **entry_kw).grid(row=r, column=1,
                                       sticky="ew", padx=(4, 4), pady=2)
             btn = tk.Button(ff, text="…",
-                            command=lambda t=types, v=var: self._browse(v, t),
+                            command=lambda t=types, v=var, k=ed_key: self._browse(v, t, k),
                             bg=BG3, fg=FG2, font=UI_B,
                             relief="flat", bd=0, padx=6, pady=1,
                             cursor="hand2")
             btn.grid(row=r, column=2, pady=2)
             _hover(btn, BG3, SEP_C, FG2, FG)
+            save_btn = tk.Button(ff, text="💾",
+                                 command=lambda v=var, k=ed_key: self._save_editor(v, k),
+                                 bg=BG3, fg=OK_C, font=UI_B,
+                                 relief="flat", bd=0, padx=6, pady=1,
+                                 cursor="hand2")
+            save_btn.grid(row=r, column=3, pady=2, padx=(2, 0))
+            _hover(save_btn, BG3, SEP_C, OK_C, FG)
 
         # cadena de entrada
         sf = tk.Frame(bar, bg=BG2)
@@ -255,14 +264,41 @@ class App(tk.Tk):
         self.tab_table   = self._add_tab("📊  Tabla")
         self.tab_sim     = self._add_tab("▶  Simulación")
         self.tab_tree    = self._add_tab("🌳  Árbol")
+        self.tab_ed_yal   = self._add_editor_tab("📝  Editor YAL")
+        self.tab_ed_yapar = self._add_editor_tab("📝  Editor YAPar")
+        self._editor_map["yal"]   = self.tab_ed_yal
+        self._editor_map["yapar"] = self.tab_ed_yapar
 
     def _add_tab(self, title: str) -> tk.Text:
         frame = tk.Frame(self.nb, bg=BG3)
         self.nb.add(frame, text=title)
-        # borde interno sutil
         inner = tk.Frame(frame, bg=BG3)
         inner.pack(fill="both", expand=True, padx=1, pady=1)
         return _scrolled_text(inner)
+
+    def _add_editor_tab(self, title: str) -> tk.Text:
+        """Pestaña con editor de texto editable (para .yal y .yapar)."""
+        frame = tk.Frame(self.nb, bg=BG3)
+        self.nb.add(frame, text=title)
+        inner = tk.Frame(frame, bg=BG3)
+        inner.pack(fill="both", expand=True, padx=1, pady=1)
+        inner.rowconfigure(0, weight=1)
+        inner.columnconfigure(0, weight=1)
+        txt = tk.Text(inner, bg="#0d1117", fg="#c9d1d9", font=MONO_LG,
+                      insertbackground=FG, wrap="none",
+                      relief="flat", borderwidth=0,
+                      padx=10, pady=8,
+                      selectbackground=ACCENT2, selectforeground=FG,
+                      undo=True)
+        vsb = tk.Scrollbar(inner, orient="vertical",   command=txt.yview,
+                           bg=BG2, troughcolor=BG2, activebackground=ACCENT)
+        hsb = tk.Scrollbar(inner, orient="horizontal", command=txt.xview,
+                           bg=BG2, troughcolor=BG2, activebackground=ACCENT)
+        txt.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        txt.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        hsb.grid(row=1, column=0, sticky="ew")
+        return txt
 
     def _build_statusbar(self):
         bar = tk.Frame(self, bg=BG2, pady=4)
@@ -295,10 +331,42 @@ class App(tk.Tk):
         btn.grid(row=row, column=2, pady=2)
         _hover(btn, BG3, SEP_C, FG2, FG)
 
-    def _browse(self, var: tk.StringVar, types):
+    def _browse(self, var: tk.StringVar, types, editor_key: str = ""):
         path = filedialog.askopenfilename(filetypes=types)
         if path:
             var.set(path)
+            if editor_key:
+                self._load_editor(path, editor_key)
+
+    def _load_editor(self, path: str, editor_key: str) -> None:
+        """Carga el contenido del archivo en la pestaña de editor correspondiente."""
+        editor = self._editor_map.get(editor_key)
+        if editor is None or not os.path.exists(path):
+            return
+        try:
+            with open(path, encoding="utf-8") as f:
+                content = f.read()
+            editor.delete("1.0", "end")
+            editor.insert("1.0", content)
+            editor.edit_reset()
+        except Exception as e:
+            editor.delete("1.0", "end")
+            editor.insert("1.0", f"# Error al cargar el archivo: {e}\n")
+
+    def _save_editor(self, var: tk.StringVar, editor_key: str) -> None:
+        """Guarda el contenido del editor en el archivo original."""
+        path = var.get().strip()
+        editor = self._editor_map.get(editor_key)
+        if not path or editor is None:
+            messagebox.showerror("Sin archivo", "Primero selecciona un archivo.")
+            return
+        try:
+            content = editor.get("1.0", "end-1c")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            self.status_var.set(f"✓  Guardado: {os.path.basename(path)}")
+        except Exception as e:
+            messagebox.showerror("Error al guardar", str(e))
 
     def _browse_src(self):
         path = filedialog.askopenfilename(

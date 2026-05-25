@@ -319,10 +319,7 @@ def run_pipeline(yal_path: str, yapar_path: str, source: str,
 
     res['ambiguity_warnings'] = detect_ambiguity(grammar)
 
-    # 4. Preprocesar gramatica
-    grammar, _, _ = report_fix_production_issues(grammar)
-
-    # 5. Info de la gramatica
+    # 4. Info de la gramatica
     lines = []
     for nt, prods in grammar.productions.items():
         for p in prods:

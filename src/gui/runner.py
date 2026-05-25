@@ -7,7 +7,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from src.cfg_grammar    import Grammar
 from src.yapar_parser   import parse_yapar, YAParError
-from src.error_recovery import report_fix_production_issues
 from src.first_follow   import report_first_follow, compute_first, compute_follow, EOF_SYM, EPSILON
 from src.ambiguity      import detect_ambiguity, full_chain_analysis
 
@@ -320,7 +319,7 @@ def run_pipeline(yal_path: str, yapar_path: str, source: str,
 
     res['ambiguity_warnings'] = detect_ambiguity(grammar)
 
-    # 4. Preprocesar gramatica (limpiar producciones duplicadas, etc.)
+    # 4. Preprocesar gramatica
     grammar, _, _ = report_fix_production_issues(grammar)
 
     # 5. Info de la gramatica

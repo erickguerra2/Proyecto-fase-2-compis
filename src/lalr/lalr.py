@@ -1,4 +1,4 @@
-"""Construccion de tabla LALR via LR(1) con fusion de estados por core LR(0)."""
+"""Tabla LALR construida desde LR(1) fusionando estados con el mismo core."""
 
 from __future__ import annotations
 from dataclasses import dataclass
@@ -13,7 +13,7 @@ from src.parse_tree import ParseTree
 
 @dataclass(frozen=True)
 class LR1Item:
-    """Item LR(1): produccion con punto y lookahead."""
+    """Item LR(1) con lookahead."""
     nt:        str
     prod:      Tuple[str, ...]
     dot:       int
@@ -71,7 +71,7 @@ def _build_lr1_collection(grammar: Grammar) -> Tuple[List[FrozenSet[LR1Item]], D
     """Coleccion canonica LR(1)."""
     aug_grammar, aug_start = augment_grammar(grammar)
     first = compute_first(aug_grammar)
-    first[EOF_SYM] = {EOF_SYM}  # asegurar que $ este en first
+    first[EOF_SYM] = {EOF_SYM}
 
     start_prod = tuple(aug_grammar.productions[aug_start][0])
     start_set  = _lr1_closure(
@@ -106,7 +106,7 @@ def _build_lr1_collection(grammar: Grammar) -> Tuple[List[FrozenSet[LR1Item]], D
 def _merge_states(collection:   List[FrozenSet[LR1Item]],
                   transitions:  Dict[Tuple[int, str], int]
                   ) -> Tuple[List[FrozenSet[LR1Item]], Dict[Tuple[int, str], int], Dict[int, int]]:
-    """Fusiona estados LR(1) con el mismo core LR(0)."""
+    """Fusiona estados LR(1) que tienen el mismo core LR(0)."""
     core_to_group: Dict[FrozenSet[Tuple], List[int]] = {}
     for i, state in enumerate(collection):
         core = frozenset(item.core for item in state)
@@ -138,7 +138,7 @@ def _merge_states(collection:   List[FrozenSet[LR1Item]],
 
 
 def build_lalr_table(grammar: Grammar) -> Tuple[LRTable, List[LR0State], str]:
-    """Construye la tabla LALR. Retorna (tabla, estados, aug_start)."""
+    """Arma la tabla LALR."""
     collection, transitions, aug_start = _build_lr1_collection(grammar)
     merged_states, new_trans, _        = _merge_states(collection, transitions)
 
@@ -182,7 +182,7 @@ class LALRParseError(Exception):
 
 
 class LALRParser:
-    """Parser LALR con pila de estados."""
+    """Parser LALR."""
 
     def __init__(self, grammar: Grammar, tokens: List[Tuple]) -> None:
         self.grammar    = grammar
@@ -196,7 +196,7 @@ class LALRParser:
         return not self.table.has_conflicts()
 
     def parse(self) -> bool:
-        """Ejecuta el parsing LALR. Retorna True si acepta. Construye self.parse_tree."""
+        """Simula el parser LALR paso a paso. Retorna True si acepta."""
         input_tokens = self.tokens + [(EOF_SYM, EOF_SYM, None, None)]
         pos        = 0
         stack      = [0]
@@ -251,7 +251,7 @@ class LALRParser:
 
 
 def report_lalr_states(states: list) -> str:
-    """Reporte de estados LALR agrupando lookaheads por core de item."""
+    """Muestra los estados LALR con sus items y transiciones."""
     lines = [f"Automata LALR: {len(states)} estado(s)"]
     for state in states:
         lines.append(f"Estado {state.id}:")

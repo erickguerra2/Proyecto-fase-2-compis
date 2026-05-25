@@ -1,11 +1,11 @@
-"""Eliminacion de recursividad izquierda directa e indirecta (algoritmo Dragon Book)."""
+"""Eliminacion de recursividad izquierda directa e indirecta."""
 
 from __future__ import annotations
 from src.cfg_grammar import Grammar
 
 
 def _left_reachable(grammar: Grammar) -> dict:
-    """Cierre transitivo de 'puede aparecer como primer simbolo izquierdo'."""
+    """Para cada NT, el conjunto de NTs que pueden aparecer como primer simbolo (cierre transitivo)."""
     reachable = {nt: set() for nt in grammar.nonterminals}
     for nt, prods in grammar.productions.items():
         for prod in prods:
@@ -30,7 +30,7 @@ def has_left_recursion(grammar: Grammar) -> bool:
 
 
 def _order_nonterminals(grammar: Grammar) -> list:
-    """Orden BFS desde el simbolo inicial para el algoritmo de eliminacion."""
+    """BFS desde el simbolo inicial para ordenar los NTs."""
     from collections import deque
     ordered, visited = [], set()
     queue = deque([grammar.start])
@@ -51,7 +51,7 @@ def _order_nonterminals(grammar: Grammar) -> list:
 
 
 def _eliminate_direct(nt: str, prods: list, all_nts: set) -> tuple:
-    """Elimina recursividad directa de un NT. Retorna (nuevas_prods, nt_prima, prods_prima)."""
+    """Quita la recursividad directa de un NT. Retorna (nuevas_prods, nt', prods_nt')."""
     recursive = [p for p in prods if p and p[0] == nt]
     base      = [p for p in prods if not (p and p[0] == nt)]
     if not recursive:

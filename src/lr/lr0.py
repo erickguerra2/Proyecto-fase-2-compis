@@ -1,4 +1,4 @@
-"""Construccion del automata LR(0): items, closure, goto y coleccion canonica."""
+"""Automata LR(0): items, closure, goto y coleccion canonica."""
 
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -10,14 +10,13 @@ AUGMENT_SUFFIX = "'"
 
 @dataclass(frozen=True)
 class LR0Item:
-    """Item LR(0): produccion con punto marcando la posicion del parser."""
+    """Item LR(0) con punto."""
     nt:   str
     prod: Tuple[str, ...]
     dot:  int
 
     @property
     def next_symbol(self) -> Optional[str]:
-        """Simbolo inmediatamente despues del punto. None si el punto esta al final."""
         return self.prod[self.dot] if self.dot < len(self.prod) else None
 
     @property
@@ -36,7 +35,7 @@ class LR0Item:
 
 @dataclass
 class LR0State:
-    """Estado del automata LR(0): conjunto de items con sus transiciones."""
+    """Estado del automata LR(0)."""
     id:          int
     items:       frozenset
     transitions: Dict[str, int] = field(default_factory=dict)
@@ -86,10 +85,7 @@ def goto(items: frozenset, symbol: str, grammar: Grammar) -> frozenset:
 
 
 def build_lr0(grammar: Grammar) -> Tuple[List[LR0State], str]:
-    """
-    Construye la coleccion canonica de estados LR(0).
-    Retorna (estados, simbolo_inicial_aumentado).
-    """
+    """Coleccion canonica de estados LR(0). Retorna (estados, simbolo inicial aumentado)."""
     aug_grammar, aug_start = augment_grammar(grammar)
 
     start_item  = LR0Item(aug_start, tuple(aug_grammar.productions[aug_start][0]), 0)
@@ -151,7 +147,7 @@ def report_augmented_grammar(grammar: Grammar) -> str:
 
 
 def report_gotos(states: List[LR0State]) -> str:
-    """Reporte de transiciones GOTO de estado 0 al final."""
+    """Transiciones GOTO de todos los estados."""
     lines = [f"Transiciones GOTO (estados 0 .. {len(states) - 1}):"]
     for state in states:
         trans = sorted(state.transitions.items())

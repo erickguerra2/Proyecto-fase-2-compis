@@ -1,4 +1,4 @@
-"""Arboles de derivacion: estructura, renderizado ASCII y construccion desde tokens reales."""
+"""Arbol de derivacion: nodos, renderizado ASCII y construccion desde tokens."""
 
 from __future__ import annotations
 from typing import List, Optional, Tuple
@@ -6,7 +6,7 @@ from src.cfg_grammar import Grammar
 
 
 class ParseTree:
-    """Nodo de un arbol de derivacion (parse tree)."""
+    """Nodo del arbol de derivacion."""
 
     def __init__(self, label: str, children: Optional[List['ParseTree']] = None):
         self.label    = label
@@ -37,15 +37,15 @@ def _render_node(node: ParseTree, lines: list, prefix: str, child_prefix: str) -
             _render_node(child, lines, child_prefix + "+-- ", child_prefix + "|   ")
 
 
-# Helpers para buscar operadores en la lista de tokens real
+# busqueda de operadores en la lista de tokens
 
 def _tok_label(tok) -> str:
-    """Devuelve la etiqueta legible de un token (lexema si existe, tipo si no)."""
+    """Lexema del token si existe, tipo si no."""
     return tok[1] if len(tok) > 1 and tok[1] and tok[1] != tok[0] else tok[0]
 
 
 def _find_op_positions(tokens: list, ops: list) -> List[int]:
-    """Posiciones donde aparece la secuencia de operadores al nivel 0 (fuera de parentesis)."""
+    """Posiciones de la secuencia de operadores al nivel 0 (sin contar dentro de parentesis)."""
     n = len(ops)
     positions = []
     depth = 0
@@ -70,10 +70,8 @@ def _find_op_positions(tokens: list, ops: list) -> List[int]:
     return positions
 
 
-# Construccion de arboles desde tokens REALES de la cadena de entrada
-
 def _collect_splits(rec_prods: list, toks: list) -> list:
-    """Posiciones de todos los operadores al nivel 0, para todas las producciones recursivas."""
+    """Junta todas las posiciones de operadores de todas las producciones recursivas."""
     splits = []
     seen   = set()
     for prod in rec_prods:
@@ -87,11 +85,7 @@ def _collect_splits(rec_prods: list, toks: list) -> list:
 
 
 def _build_assoc_tree(nt: str, rec_prods: list, toks: list, left_assoc: bool) -> 'ParseTree':
-    """Construye un arbol de la cadena con asociacion izquierda o derecha.
-
-    left_assoc=True  -> divide en el operador mas a la derecha -> (a op b) op c
-    left_assoc=False -> divide en el operador mas a la izquierda -> a op (b op c)
-    """
+    """Arbol con asociacion izquierda (True) o derecha (False)."""
     splits = _collect_splits(rec_prods, toks)
     if not splits:
         return _leaf_tree(nt, rec_prods, toks)
@@ -109,7 +103,7 @@ def _build_assoc_tree(nt: str, rec_prods: list, toks: list, left_assoc: bool) ->
 
 
 def _leaf_tree(nt: str, rec_prods: list, toks: list) -> 'ParseTree':
-    """Nodo hoja: token unico, epsilon, o expresion entre parentesis."""
+    """Caso base: token unico, epsilon o expresion entre parentesis."""
     if not toks:
         return ParseTree(nt, [ParseTree("e")])
     is_lparen = lambda t: t[0] == "LPAREN" or (len(t) > 1 and t[1] == "(")
@@ -123,11 +117,8 @@ def _leaf_tree(nt: str, rec_prods: list, toks: list) -> 'ParseTree':
 def build_trees_from_tokens(
         grammar: Grammar, nt: str, tokens: list
 ) -> Tuple[Optional['ParseTree'], Optional['ParseTree']]:
-    """Construye dos arboles de derivacion de la cadena real: asociacion izquierda y derecha.
-
-    Usa todos los operadores de todas las producciones E->E op E para encontrar
-    puntos de division distintos. Retorna (arbol_izq, arbol_der) o (None, None).
-    """
+    """Dos arboles de la cadena: uno con asociacion izquierda y otro derecha.
+    Retorna (None, None) si no hay suficientes puntos de division."""
     non_eps   = [p for p in grammar.productions.get(nt, []) if p]
     rec_prods = [p for p in non_eps if p[0] == nt and p[-1] == nt and len(p) > 1]
     if not rec_prods:
@@ -146,14 +137,10 @@ def build_trees_from_tokens(
     return tree_left, tree_right
 
 
-# Arboles para producciones duplicadas
-
 def build_duplicate_trees(
         grammar: Grammar, nt: str, prod: list
 ) -> Tuple[str, Optional['ParseTree'], Optional['ParseTree']]:
-    """Para una produccion duplicada construye dos arboles identicos en estructura.
-    Ambos representan derivaciones distintas de la misma cadena usando copias
-    diferentes de la misma produccion."""
+    """Dos arboles iguales para una produccion duplicada (misma estructura, distinta derivacion)."""
     def make_tree() -> 'ParseTree':
         children = [_derive_leaf(grammar, sym) for sym in prod] if prod else [ParseTree("e")]
         return ParseTree(nt, children)
@@ -164,7 +151,7 @@ def build_duplicate_trees(
     return witness, t1, t2
 
 
-# Derivacion minima, fallback cuando no hay tokens reales
+# derivacion minima, se usa cuando no hay tokens reales
 
 def _derive_leaf(grammar: Grammar, symbol: str,
                  visited: Optional[frozenset] = None) -> 'ParseTree':

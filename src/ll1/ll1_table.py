@@ -1,4 +1,4 @@
-"""Tabla de parsing LL(1) y parser predictivo con recuperacion de errores por FOLLOW."""
+"""Tabla LL(1) y parser predictivo."""
 
 from __future__ import annotations
 from typing import Dict, List, Tuple, Optional
@@ -85,7 +85,7 @@ class LL1ParseError(Exception):
 
 
 class LL1Parser:
-    """Parser predictivo LL(1) con recuperacion de errores por FOLLOW sets."""
+    """Parser predictivo LL(1)."""
 
     def __init__(self, grammar: Grammar,
                  tokens: List[Tuple]) -> None:
@@ -102,8 +102,7 @@ class LL1Parser:
         return len(self.conflicts) == 0
 
     def parse(self) -> bool:
-        """Ejecuta el parsing predictivo con pila explicita. Retorna True si acepta.
-        Tras aceptar, construye self.parse_tree con _build_parse_tree()."""
+        """Parsing con pila explicita. Retorna True si acepta."""
         if not self.is_ll1():
             raise LL1ParseError(
                 f"La gramatica tiene {len(self.conflicts)} conflictos LL(1).\n"
@@ -181,14 +180,13 @@ class LL1Parser:
         return True
 
     def _build_parse_tree(self, input_tokens: list) -> ParseTree:
-        """Reconstruye el arbol de derivacion usando la tabla LL(1) (top-down recursivo)."""
+        """Arma el arbol de derivacion de forma top-down usando la tabla."""
         pos = [0]
 
         def expand(symbol: str) -> ParseTree:
             if symbol == EOF_SYM:
                 return ParseTree(symbol)
 
-            # Terminal: consumir el token correspondiente
             if symbol in self.grammar.terminals or symbol not in self.grammar.productions:
                 tok = input_tokens[pos[0]] if pos[0] < len(input_tokens) else (EOF_SYM, EOF_SYM, None, None)
                 if self._match(symbol, tok[0], tok[1]):
@@ -197,7 +195,6 @@ class LL1Parser:
                     return ParseTree(label)
                 return ParseTree(symbol)
 
-            # No-terminal: buscar produccion en tabla
             tok = input_tokens[pos[0]] if pos[0] < len(input_tokens) else (EOF_SYM, EOF_SYM, None, None)
             prod_list = self.table.get((symbol, tok[0])) or self.table.get((symbol, tok[1]))
 

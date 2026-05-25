@@ -5,7 +5,7 @@ import os, tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from src.gui.runner import run_pipeline
 
-# ── Paleta ───────────────────────────────────────────────────────────────────
+# colores
 BG      = "#0f0f1a"   # fondo base
 BG2     = "#1a1a2e"   # paneles / frames
 BG3     = "#252540"   # inputs / cards
@@ -39,7 +39,7 @@ TAB_ICONS = {
 }
 
 
-# ── Utilidades ────────────────────────────────────────────────────────────────
+# utilidades de widgets
 
 def _scrolled_text(parent) -> tk.Text:
     """Text con scrollbars vertical y horizontal."""
@@ -93,7 +93,7 @@ def _hover(btn: tk.Button, normal_bg: str, hover_bg: str,
     btn.bind("<Leave>", lambda _: btn.config(bg=normal_bg, fg=normal_fg))
 
 
-# ── App ───────────────────────────────────────────────────────────────────────
+# ventana principal
 
 class App(tk.Tk):
 
@@ -105,7 +105,7 @@ class App(tk.Tk):
         self.configure(bg=BG)
         self._build_ui()
 
-    # ── Construccion UI ──────────────────────────────────────────────────────
+    # construccion de la UI
 
     def _build_ui(self):
         self._build_header()
@@ -123,7 +123,7 @@ class App(tk.Tk):
                  bg=BG2, fg=FG, font=UI_H, anchor="w"
                  ).pack(side="left", padx=14)
         tk.Label(hdr,
-                 text="UVG · Compiladores 2025  ",
+                 text="UVG · Compiladores 2026",
                  bg=BG2, fg=FG2, font=UI, anchor="e"
                  ).pack(side="right", padx=14)
 
@@ -143,7 +143,7 @@ class App(tk.Tk):
                         highlightbackground=SEP_C,
                         highlightcolor=ACCENT)
 
-        # ── Columna 0: archivos ─────────────────────────────────────────────
+        # archivos YAL y YAPar
         ff = tk.Frame(bar, bg=BG2)
         ff.grid(row=0, column=0, sticky="ns", padx=(0, 10))
         ff.columnconfigure(1, weight=1)
@@ -171,11 +171,7 @@ class App(tk.Tk):
             btn.grid(row=r, column=2, pady=2)
             _hover(btn, BG3, SEP_C, FG2, FG)
 
-        # separador vertical
-        tk.Frame(bar, bg=SEP_C, width=1).grid(
-            row=0, column=0, sticky="ns", padx=(0, 0))
-
-        # ── Columna 1: cadena de entrada ────────────────────────────────────
+        # cadena de entrada
         sf = tk.Frame(bar, bg=BG2)
         sf.grid(row=0, column=1, sticky="ew", padx=10)
         sf.columnconfigure(1, weight=1)
@@ -205,11 +201,7 @@ class App(tk.Tk):
         self.file_btn.grid(row=1, column=2, pady=2)
         _hover(self.file_btn, BG3, SEP_C, FG2, FG)
 
-        # separador vertical
-        tk.Frame(bar, bg=SEP_C, width=1).grid(
-            row=0, column=1, sticky="nse", padx=(10, 0))
-
-        # ── Columna 2: parser + botón ───────────────────────────────────────
+        # selector de parser y boton
         pf = tk.Frame(bar, bg=BG2, padx=10)
         pf.grid(row=0, column=2, sticky="ns")
 
@@ -281,7 +273,7 @@ class App(tk.Tk):
                  bg=BG2, fg=FG2, font=UI,
                  anchor="w", padx=14).pack(fill="x")
 
-    # ── Interaccion ──────────────────────────────────────────────────────────
+    # handlers de interaccion
 
     def _file_row(self, parent, label, var, row, types):
         """Fila de archivo compacta (helper interno)."""
@@ -362,7 +354,7 @@ class App(tk.Tk):
 
         self._populate(res)
 
-    # ── Relleno de tabs ──────────────────────────────────────────────────────
+    # llena cada tab con los resultados
 
     def _populate(self, res: dict):
         error    = res.get('error')
@@ -370,7 +362,7 @@ class App(tk.Tk):
         warnings = res.get('ambiguity_warnings', [])
         mode     = self.parser_var.get().upper()
 
-        # ── Tokens ──
+        # tokens
         _write(self.tab_tokens, "")
         self.tab_tokens.config(state="normal")
         hdr = f"  {'#':<5} {'Tipo':<24} {'Lexema':<24} {'Línea':<7} Col\n"
@@ -393,7 +385,7 @@ class App(tk.Tk):
             self.tab_tokens.insert("end", "  (sin tokens reconocidos)\n", "warn")
         self.tab_tokens.config(state="disabled")
 
-        # ── Gramática ──
+        # gramatica
         _write(self.tab_grammar, "")
         self.tab_grammar.config(state="normal")
         n_prod = res.get('productions_count', 0)
@@ -417,12 +409,12 @@ class App(tk.Tk):
             self.tab_grammar.insert("end", "\n" + ff + "\n")
         self.tab_grammar.config(state="disabled")
 
-        # ── Estados ──
+        # estados
         states = res.get('states_text', '')
         gotos  = res.get('gotos_text', '')
         _write(self.tab_states, (states + "\n\n" + gotos).strip())
 
-        # ── Tabla ──
+        # tabla
         _write(self.tab_table, "")
         self.tab_table.config(state="normal")
         conflicts = res.get('conflicts', [])
@@ -442,7 +434,7 @@ class App(tk.Tk):
             self.tab_table.insert("end", tbl)
         self.tab_table.config(state="disabled")
 
-        # ── Simulación ──
+        # simulacion
         _write(self.tab_sim, "")
         self.tab_sim.config(state="normal")
         trace  = res.get('trace', [])
@@ -486,7 +478,7 @@ class App(tk.Tk):
                 "  (sin simulación disponible para esta gramática)\n", "fg2")
         self.tab_sim.config(state="disabled")
 
-        # ── Árbol / Ambigüedad ──
+        # arbol y ambiguedad
         _write(self.tab_tree, "")
         self.tab_tree.config(state="normal")
         if warnings:
@@ -513,7 +505,7 @@ class App(tk.Tk):
             )
         self.tab_tree.config(state="disabled")
 
-        # ── Banner de resultado ──
+        # banner de resultado
         if error:
             self.result_banner.config(
                 text=f"  ✗   CADENA RECHAZADA",
@@ -531,7 +523,7 @@ class App(tk.Tk):
         else:
             self.result_banner.config(text="", bg=BG, pady=0)
 
-        # ── Status bar ──
+        # status bar
         if error:
             self.status_var.set(f"✗  {error[:120]}")
             for tab in (self.tab_tokens, self.tab_grammar, self.tab_states,

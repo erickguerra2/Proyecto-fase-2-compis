@@ -1,4 +1,4 @@
-"""Estructura de tabla action/goto compartida por SLR(1) y LALR."""
+"""Tabla ACTION/GOTO compartida por SLR(1) y LALR."""
 
 from __future__ import annotations
 from typing import Dict, List, Tuple, Optional
@@ -77,7 +77,7 @@ class LRTable:
         if key in self.action and self.action[key] != action:
             existing = self.action[key]
             self.conflicts.append(LRConflict(state, symbol, existing, action))
-            # shift-reduce: prefer shift (standard "shift wins" resolution)
+                # en shift-reduce gana el shift
             kinds = {existing.kind, action.kind}
             if SHIFT in kinds and REDUCE in kinds and action.kind == SHIFT:
                 self.action[key] = action

@@ -11,10 +11,7 @@ from src.parse_tree import ParseTree
 
 
 def build_slr1_table(grammar: Grammar) -> Tuple[LRTable, List[LR0State], str]:
-    """
-    Construye la tabla SLR(1).
-    Retorna (tabla, estados, simbolo_inicial_aumentado).
-    """
+    """Tabla SLR(1). Retorna (tabla, estados, simbolo inicial aumentado)."""
     states, aug_start = build_lr0(grammar)
     follow = compute_follow(grammar, compute_first(grammar))
     table  = LRTable(states)
@@ -69,7 +66,7 @@ class SLR1Parser:
         return not self.table.has_conflicts()
 
     def parse(self) -> bool:
-        """Ejecuta el parsing SLR(1). Retorna True si acepta. Construye self.parse_tree."""
+        """Parsing SLR(1). Retorna True si acepta."""
         input_tokens = self.tokens + [(EOF_SYM, EOF_SYM, None, None)]
         pos        = 0
         stack      = [0]

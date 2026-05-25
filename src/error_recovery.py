@@ -1,4 +1,4 @@
-"""Recuperacion de errores sintacticos: panic-mode, phrase-level, production-level y global."""
+"""Recuperacion de errores sintacticos."""
 
 from __future__ import annotations
 from typing import List, Tuple, Optional, Set
@@ -14,7 +14,7 @@ DEFAULT_SYNC_TOKENS: Set[str] = {
 
 
 class SyntaxError_:
-    """Representa un error sintactico detectado con su posicion y contexto."""
+    """Error sintactico con posicion y contexto."""
     def __init__(self, pos: int, token: tuple, expected: str,
                  recovery: str = "", skipped: list = None):
         self.pos      = pos
@@ -117,7 +117,7 @@ def format_errors(errors: List[SyntaxError_]) -> str:
 
 
 def _compute_unit_pairs(grammar) -> set:
-    """Pares (A, B) donde A =>* B via producciones unitarias (cierre transitivo)."""
+    """Cierre transitivo de producciones unitarias: pares (A, B) donde A =>* B."""
     pairs = {(nt, nt) for nt in grammar.nonterminals}
     changed = True
     while changed:

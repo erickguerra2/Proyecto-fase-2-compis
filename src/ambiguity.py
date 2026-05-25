@@ -1,8 +1,4 @@
-"""Deteccion, visualizacion y correccion de ambiguedad en gramaticas libres de contexto.
-
-Una gramatica es ambigua si existe al menos una cadena del lenguaje que admite
-mas de un arbol de derivacion.
-"""
+"""Deteccion y correccion de ambiguedad en gramaticas."""
 
 from __future__ import annotations
 from typing import Tuple, List, Set, Optional
@@ -20,15 +16,11 @@ class AmbiguityWarning:
         return f"  [{self.kind}] {self.nt}: {self.detail}"
 
 
-# ---------------------------------------------------------------------------
-# Deteccion estructural
-# ---------------------------------------------------------------------------
+# deteccion estructural
 
 def detect_ambiguity(grammar: Grammar) -> list:
-    """AmbiguityWarning para cada patron de ambiguedad estructural.
-
-    Los prefijos comunes (A->aB|aC) NO se reportan aqui: no producen dos
-    arboles distintos, solo impiden LL(1) sin factorizacion.
+    """Busca patrones de ambiguedad estructural en la gramatica.
+    Los prefijos comunes no se reportan aqui, esos van en detect_ll1_problems.
     """
     warnings = []
 
@@ -66,7 +58,7 @@ def detect_ambiguity(grammar: Grammar) -> list:
 
 
 def detect_ll1_problems(grammar: Grammar) -> list:
-    """Prefijos comunes que impiden LL(1) pero NO son ambiguedad."""
+    """Prefijos comunes que impiden LL(1) pero no son ambiguedad como tal."""
     warnings = []
     for nt, prods in grammar.productions.items():
         non_eps = [p for p in prods if p]
@@ -88,12 +80,10 @@ def is_ambiguous(grammar: Grammar) -> bool:
     return len(detect_ambiguity(grammar)) > 0
 
 
-# ---------------------------------------------------------------------------
-# Correccion
-# ---------------------------------------------------------------------------
+# correccion
 
 def fix_ambiguity(grammar: Grammar) -> Tuple[Grammar, List[str], Set[str]]:
-    """Corrige ambiguedades estructurales. Retorna (gramatica, cambios, aplicados)."""
+    """Intenta corregir las ambiguedades que se pueden resolver automaticamente."""
     from src.ll1.left_recursion import has_left_recursion, eliminate_left_recursion
 
     warnings = detect_ambiguity(grammar)
@@ -145,12 +135,8 @@ def full_chain_analysis(
         fix:          bool = True,
         pre_parse:    bool = False
 ) -> Tuple[Grammar, str, Set[str]]:
-    """Arbol de la cadena real, deteccion de ambiguedad y correccion opcional.
-
-    pre_parse=True  -> analisis antes del parse: muestra cadena, detecta arboles multiples, corrige.
-    pre_parse=False -> analisis post-parse: muestra arbol real del parser.
-    fix=True        -> aplica correcciones si hay ambiguedad (solo LL1).
-    fix=False       -> solo detecta y reporta, sin modificar la gramatica.
+    """Analiza ambiguedad y muestra arboles de derivacion.
+    pre_parse=True: analisis antes del parse. fix=True: corrige si es LL(1).
     """
     from src.parse_tree import build_trees_from_tokens, build_duplicate_trees
 

@@ -1,4 +1,4 @@
-"""Ejecuta el pipeline completo y retorna resultados estructurados para la GUI."""
+"""Corre el pipeline completo y devuelve los resultados para la GUI."""
 
 from __future__ import annotations
 import os, sys, io, subprocess, importlib.util
@@ -22,12 +22,10 @@ from src.ll1.factorization  import needs_factorization, left_factor
 from src.ll1.ll1_table      import build_ll1_table, LL1Parser, LL1ParseError
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# helpers
 
 def _capture(fn, *args, **kwargs) -> str:
-    """Captura stdout de una funcion en un string."""
+    """Captura lo que imprime una funcion y lo devuelve como string."""
     buf = io.StringIO()
     old = sys.stdout
     sys.stdout = buf
@@ -39,7 +37,7 @@ def _capture(fn, *args, **kwargs) -> str:
 
 
 def _table_str_lr(table, terminals, nonterminals) -> str:
-    """Tabla ACTION/GOTO con anchos de columna dinamicos."""
+    """Formatea la tabla ACTION/GOTO para mostrarla en la GUI."""
     terms = sorted(terminals)
     nts   = sorted(nonterminals)
     n     = table.n_states
@@ -167,12 +165,10 @@ def _build_lr_trace(table, tokens: list) -> list:
 
         elif action.kind == REDUCE:
             n = len(action.prod)
-            # pop exactamente n estados Y n simbolos (epsilon = n=0, no se popea nada)
             for _ in range(n):
                 stack.pop()
                 sym_stack.pop()
             goto = table.get_goto(stack[-1], action.nt)
-            # FIX C2: registrar el error en la traza en vez de salir silenciosamente
             if goto is None:
                 steps.append((
                     " ".join(str(s) for s in stack),

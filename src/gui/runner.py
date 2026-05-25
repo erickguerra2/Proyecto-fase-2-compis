@@ -360,7 +360,6 @@ def _run_ll1(grammar: Grammar, tokens: list, res: dict):
     if needs_factorization(grammar):
         grammar = left_factor(grammar)
 
-    # FIX H1: actualizar grammar_text con la gramatica ya transformada
     lines_t = []
     for nt, prods in grammar.productions.items():
         for p in prods:
@@ -374,7 +373,6 @@ def _run_ll1(grammar: Grammar, tokens: list, res: dict):
     res['states_text']  = "(LL(1) no construye automata LR — usa tabla predictiva)"
     res['gotos_text']   = ""
 
-    # FIX H4: construir la tabla una sola vez y reutilizarla
     ll1_table, conflicts = build_ll1_table(grammar)
     res['conflicts']  = conflicts
     res['table_text'] = _table_str_ll1(grammar, ll1_table, conflicts)
@@ -396,7 +394,7 @@ def _run_ll1(grammar: Grammar, tokens: list, res: dict):
     except LL1ParseError as e:
         res['error'] = str(e)
         res['ambiguity_text'] = pre_text
-        return   # FIX H4: no llamar full_chain_analysis si el parse fallo
+        return
 
     # Post-analisis solo si el parse fue exitoso
     _, post_text, _ = full_chain_analysis(
@@ -407,7 +405,6 @@ def _run_ll1(grammar: Grammar, tokens: list, res: dict):
 def _run_slr1(grammar: Grammar, tokens: list, res: dict):
     res['first_follow'] = report_first_follow(grammar)
 
-    # FIX C4: construir LR(0) una sola vez
     lr0_states, _ = build_lr0(grammar)
     res['states_text'] = report_augmented_grammar(grammar) + "\n\n" + report_lr0(lr0_states)
     res['gotos_text']  = report_gotos(lr0_states)
@@ -434,7 +431,6 @@ def _run_slr1(grammar: Grammar, tokens: list, res: dict):
 def _run_lalr(grammar: Grammar, tokens: list, res: dict):
     res['first_follow'] = report_first_follow(grammar)
 
-    # FIX C4: build_lalr_table una sola vez; pasar tabla al parser evita segunda construccion
     table, states, _ = build_lalr_table(grammar)
     res['states_text'] = report_augmented_grammar(grammar) + "\n\n" + report_lalr_states(states)
     res['gotos_text']  = report_gotos(states)
